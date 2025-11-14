@@ -20,10 +20,11 @@ struct AppStuff {
 /// Once we have a better window switcher, we can have a common base class or
 /// something
 class AppSwitcher {
-	std::span<std::string>                     app_id_focus_history;
-	std::unordered_map<std::string, AppStuff> *app_stuff_map;
-	size_t                                     idx;
-	SP<HOOK_CALLBACK_FN>                       render_hook;
+	std::span<std::string>                             app_id_focus_history;
+	std::unordered_map<std::string, AppStuff>         *app_stuff_map;
+	size_t                                             idx;
+	SP<HOOK_CALLBACK_FN>                               render_hook;
+	std::chrono::time_point<std::chrono::system_clock> last_move_time;
 
 	CHyprColor  container_background_color;
 	CHyprColor  container_border_color;
@@ -41,7 +42,8 @@ class AppSwitcher {
 	int         selection_radius;
 	float       font_height;
 
-	static bool active;
+	bool visible;
+	bool active;
 
 public:
 	AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr)
@@ -52,18 +54,18 @@ public:
 
 	void reload_config();
 
-	static bool is_active();
-
 	void show(
 	    std::span<std::string>                     app_id_focus_history,
 	    std::unordered_map<std::string, AppStuff> *app_stuff_map
 	);
 	void move(bool backwards);
 	void focus_selected();
+	bool is_visible();
+	bool is_active();
 
 private:
-	void        render();
-	static void hide();
+	void render();
+	void hide();
 
 	friend class AppSwitcherPassElement;
 };

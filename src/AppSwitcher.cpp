@@ -4,8 +4,6 @@
 
 using namespace std::chrono_literals;
 
-bool AppSwitcher::active = false;
-
 bool AppSwitcher::is_active() { return active; }
 
 void AppSwitcher::move(bool backwards)
@@ -14,6 +12,8 @@ void AppSwitcher::move(bool backwards)
 
 	if (app_id_focus_history.empty())
 		return;
+
+	last_move_time = std::chrono::system_clock::now();
 
 	if (backwards) {
 		if (idx)
@@ -68,6 +68,7 @@ void AppSwitcher::hide()
 {
 	LOG_TRACE("{}", "");
 	active = false;
+	visible = false;
 }
 
 void AppSwitcher::render()
@@ -84,6 +85,10 @@ void AppSwitcher::render()
 		log(INFO, "render: no apps open");
 		return;
 	}
+
+	if (!visible && std::chrono::system_clock::now() - last_move_time < 100ms)
+		return;
+	visible = true;
 
 	size_t num_icons = app_id_focus_history.size();
 	double total_width =
