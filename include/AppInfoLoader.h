@@ -6,7 +6,6 @@
 #include <unordered_map>
 
 #include <glib.h>
-#include <glibmm/refptr.h>
 
 #include "Image.h"
 

@@ -3,9 +3,6 @@
 #include "AppSwitcherPassElement.h"
 #include "Globals.h"
 #include "Logging.h"
-#include <future>
-#include <hyprlang.hpp>
-#include <src/desktop/DesktopTypes.hpp>
 
 using namespace std::chrono_literals;
 
