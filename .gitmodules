@@ -1,0 +1,7 @@
+[submodule "external/small_vector"]
+	path = external/small_vector
+	url = https://github.com/gharveymn/small_vector.git
+	branch = main
+[submodule "external/libnkutils"]
+	path = external/libnkutils
+	url = https://github.com/sardemff7/libnkutils

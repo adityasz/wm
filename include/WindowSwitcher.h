@@ -1,0 +1,27 @@
+#pragma once
+
+#include <span>
+#include <vector>
+
+#include "Hyprland.h"
+
+/// We can have a window switcher that displays previews (above/below the app
+/// switcher if it is open). But that would require taking a snapshot of windows
+/// and that's a ton of code that I do not want to write, especially when I find
+/// the current setup to be good enough.
+class WindowSwitcher {
+	std::vector<PHLWINDOWREF> windows;
+	size_t                    idx;
+
+public:
+	static bool active;
+
+	WindowSwitcher() : idx(0)
+	{
+		windows.reserve(10);
+		active = false;
+	}
+
+	void seed(std::span<PHLWINDOWREF> windows);
+	void move(bool backwards);
+};
