@@ -188,13 +188,18 @@ SDispatchResult WindowManager::move_or_exec(int n)
 
 bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
 {
-	static bool super_held = false;
+	static bool mod_held   = false;
 	static bool shift_held = false;
 
 	switch (key) {
 	case SWITCHER_MOD:
-		super_held = state;
-		if (!state) {
+		mod_held = state;
+		if (state) {
+			// how to force rendering?
+			// if (app_switcher.is_active())
+			// 	app_switcher.ping()
+		} else {
+			// mod released
 			window_switcher.active = false;
 			window_switcher.seed({});
 			if (app_switcher.is_active())
@@ -204,14 +209,14 @@ bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
 	case KEY_LEFTSHIFT:
 	case KEY_RIGHTSHIFT: shift_held = state; return false;
 	case KEY_TAB:
-		if (super_held) {
+		if (mod_held) {
 			if (state)
 				handle_app_switching(shift_held);
 			return true;
 		}
 		return false;
 	case KEY_GRAVE:
-		if (super_held) {
+		if (mod_held) {
 			if (state)
 				handle_window_switching(shift_held);
 			return true;

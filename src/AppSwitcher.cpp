@@ -1,3 +1,6 @@
+#include <expected>
+#include <variant>
+
 #include "AppSwitcher.h"
 #include "Globals.h"
 #include "Logging.h"
@@ -12,8 +15,6 @@ void AppSwitcher::move(bool backwards)
 
 	if (app_id_focus_history.empty())
 		return;
-
-	last_move_time = std::chrono::system_clock::now();
 
 	if (backwards) {
 		if (idx)
@@ -54,6 +55,20 @@ void AppSwitcher::show(
 {
 	active = true;
 
+	first_tab_press = std::chrono::system_clock::now();
+
+	timer = wl_event_loop_add_timer(
+	    g_pCompositor->m_wlEventLoop,
+	    [](void *data) {
+		    auto *self = static_cast<AppSwitcher *>(data);
+		    if (auto res = self->get_container_box(); res.has_value())
+			    g_pHyprRenderer->damageRegion(res.value());
+		    return 0;
+	    },
+	    this
+	);
+	wl_event_source_timer_update(timer, 100);
+
 	log(INFO, "[wm] show: {}", app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
@@ -67,8 +82,30 @@ void AppSwitcher::show(
 void AppSwitcher::hide()
 {
 	LOG_TRACE("{}", "");
-	active = false;
+	active  = false;
 	visible = false;
+	if (visible) {
+		wl_event_source_remove(timer);
+		timer = nullptr;
+	}
+}
+
+std::expected<CBox, std::monostate> AppSwitcher::get_container_box()
+{
+	size_t num_icons = app_id_focus_history.size();
+	double total_width =
+	    container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
+	double total_height =
+	    container_padding + icon_size + label_sep + font_height + container_padding;
+	auto monitor = g_pCompositor->m_lastMonitor.lock();
+	if (!monitor) {
+		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
+		return std::unexpected{std::monostate{}};
+	}
+	auto center = monitor->m_size * monitor->m_scale / 2;
+	return CBox{
+	    center.x - total_width / 2.0, center.y - total_height / 2.0, total_width, total_height
+	};
 }
 
 void AppSwitcher::render()
@@ -86,27 +123,24 @@ void AppSwitcher::render()
 		return;
 	}
 
-	if (!visible && std::chrono::system_clock::now() - last_move_time < 100ms)
+	if (!visible && std::chrono::system_clock::now() - first_tab_press < 100ms)
 		return;
 	visible = true;
 
-	size_t num_icons = app_id_focus_history.size();
-	double total_width =
-	    container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
-	double total_height =
-	    container_padding + icon_size + label_sep + font_height + container_padding;
-	auto   center      = monitor->m_size * monitor->m_scale / 2;
-	double container_x = center.x - total_width / 2.0;
-	double container_y = center.y - total_height / 2.0;
+	CBox container_box;
+	if (auto res = get_container_box(); res.has_value())
+		container_box = res.value();
+	else
+		return;
 
 	// TODO: shadow
 
 	// Draw container border if width > 0
 	CBox border_box = {
-	    container_x - container_border_width,
-	    container_y - container_border_width,
-	    total_width + 2 * container_border_width,
-	    total_height + 2 * container_border_width
+	    container_box.x - container_border_width,
+	    container_box.y - container_border_width,
+	    container_box.w + 2 * container_border_width,
+	    container_box.h + 2 * container_border_width
 	};
 	if (container_border_width > 0) {
 		CHyprOpenGLImpl::SRectRenderData border_data;
@@ -116,15 +150,14 @@ void AppSwitcher::render()
 	}
 
 	// Draw container background
-	CBox container_box = {container_x, container_y, total_width, total_height};
 	CHyprOpenGLImpl::SRectRenderData container_data;
 	container_data.round = container_radius;
 	container_data.blur  = true;
 	g_pHyprOpenGL->renderRect(container_box, container_background_color, container_data);
 
-	double icon_x   = container_x + container_padding;
+	double icon_x   = container_box.x + container_padding;
 	// TODO: use multiple rows when too many icons
-	double icon_y   = container_y + container_padding;
+	double icon_y   = container_box.y + container_padding;
 	CBox   icon_box = {
         icon_x, icon_y, static_cast<double>(icon_size), static_cast<double>(icon_size)
     };

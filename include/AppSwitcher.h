@@ -24,7 +24,8 @@ class AppSwitcher {
 	std::unordered_map<std::string, AppStuff>         *app_stuff_map;
 	size_t                                             idx;
 	SP<HOOK_CALLBACK_FN>                               render_hook;
-	std::chrono::time_point<std::chrono::system_clock> last_move_time;
+	std::chrono::time_point<std::chrono::system_clock> first_tab_press;
+	wl_event_source                                   *timer;
 
 	CHyprColor  container_background_color;
 	CHyprColor  container_border_color;
@@ -64,8 +65,10 @@ public:
 	bool is_active();
 
 private:
-	void render();
-	void hide();
+	std::expected<CBox, std::monostate> get_container_box();
+	void                                render();
+	void                                hide();
 
 	friend class AppSwitcherPassElement;
+	friend class WindowManager;
 };
