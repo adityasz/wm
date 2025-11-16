@@ -1,4 +1,8 @@
+#include <condition_variable>
 #include <filesystem>
+#include <future>
+#include <mutex>
+#include <thread>
 
 #include <glibmm/keyfile.h>
 #include <gtkmm.h>

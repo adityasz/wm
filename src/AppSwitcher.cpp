@@ -7,6 +7,12 @@
 
 using namespace std::chrono_literals;
 
+AppSwitcher::AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr)
+{
+	active = false;
+	reload_config();
+}
+
 bool AppSwitcher::is_active() { return active; }
 
 void AppSwitcher::move(bool backwards)

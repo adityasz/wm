@@ -10,13 +10,17 @@
 /// and that's a ton of code that I do not want to write, especially when I find
 /// the current setup to be good enough.
 class WindowSwitcher {
-	std::vector<PHLWINDOWREF> app_windows;
-	std::vector<PHLWINDOW>    all_windows; // to restore z order
-	size_t                    idx;
-	bool                      active;
+	// WindowManager::on_touch_window does not modify this when active = true
+	std::span<PHLWINDOWREF> app_windows;
+	// All windows of the app are raised when window switching starts.
+	// On abort (end), windows (other than focused window) are reset to their
+	// original z-order.
+	std::vector<PHLWINDOW>  initial_windows;
+	int                     idx;
+	bool                    active;
 
 public:
-	WindowSwitcher() : idx(0), active(false) { app_windows.reserve(10); }
+	WindowSwitcher();
 
 	void seed(std::span<PHLWINDOWREF> windows);
 	void move(bool backwards);

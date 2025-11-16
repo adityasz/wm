@@ -47,11 +47,7 @@ class AppSwitcher {
 	bool active;
 
 public:
-	AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr)
-	{
-		active = false;
-		reload_config();
-	}
+	AppSwitcher();
 
 	void reload_config();
 

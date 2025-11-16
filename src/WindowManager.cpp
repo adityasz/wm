@@ -306,12 +306,7 @@ void WindowManager::handle_window_switching(bool backwards)
 		auto it = app_id_to_stuff_map.find(last_window->m_class);
 		if (it == app_id_to_stuff_map.end())
 			return;
-		log(INFO,
-		    "Window switching {}: {}",
-		    last_window->m_class,
-		    it->second.windows | std::views::transform([](auto window_ptr) {
-			    return std::format("0x{:x}", reinterpret_cast<uintptr_t>(window_ptr.get()));
-		    }) | std::ranges::to<std::vector>());
+		;
 		window_switcher.seed(it->second.windows);
 	}
 	window_switcher.move(backwards);

@@ -18,13 +18,33 @@ log([[maybe_unused]] eLogLevel                   level,
 {}
 #endif
 
-#define LOG_TRACE(fmt, ...) log(TRACE, "{}: " fmt, __PRETTY_FUNCTION__, __VA_ARGS__)
+#ifndef NDEBUG
+#define LOG_TRACE(fmt, ...) log(LOG, "{}: " fmt, __PRETTY_FUNCTION__, __VA_ARGS__)
+#else
+#define LOG_TRACE(fmt, ...)                                                                       \
+	do {                                                                                          \
+	} while (0)
+#endif
 
 template <typename T>
     requires std::is_convertible_v<T, PHLWINDOWREF>
 std::string as_str(const T &window)
 {
-	return std::format("{}::0x{:x}", window->m_class, reinterpret_cast<uintptr_t>(window.get()));
+	if (window) {
+		return std::format(
+		    "{}::{}:0x{:x}",
+		    window->m_class,
+		    window->m_title,
+		    reinterpret_cast<uintptr_t>(window.get())
+		);
+	} else {
+		return std::format(
+		    "window::nullptr",
+		    window->m_class,
+		    window->m_title,
+		    reinterpret_cast<uintptr_t>(window.get())
+		);
+	}
 }
 
 template <typename T>
