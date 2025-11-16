@@ -61,6 +61,10 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 void WindowManager::on_touch_window(const PHLWINDOW &window)
 {
 	LOG_TRACE("{}", as_str(window));
+	if (window_switcher.is_active()) {
+		log(INFO, "window switcher is active, ignoring touch");
+		return;
+	}
 	if (auto it = app_id_to_stuff_map.find(window->m_class); it == app_id_to_stuff_map.end()) {
 		auto [it_new, _] = app_id_to_stuff_map.try_emplace(window->m_class);
 		it_new->second.windows.push_back(window);
@@ -194,15 +198,12 @@ bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
 	switch (key) {
 	case SWITCHER_MOD:
 		mod_held = state;
-		if (state) {
-			// how to force rendering?
-			// if (app_switcher.is_active())
-			// 	app_switcher.ping()
-		} else {
+		if (!state) {
 			// mod released
-			window_switcher.active = false;
-			window_switcher.seed({});
-			if (app_switcher.is_active())
+			// both of them cannot be active at the same time by design
+			if (window_switcher.is_active())
+				window_switcher.focus_selected();
+			else if (app_switcher.is_active())
 				app_switcher.focus_selected();
 		}
 		return false;
@@ -284,10 +285,8 @@ void WindowManager::load_icon_textures()
 void WindowManager::handle_app_switching(bool backwards)
 {
 	LOG_TRACE("backwards = {}", backwards);
-	if (window_switcher.active) {
-		window_switcher.active = false;
-		window_switcher.seed({});
-	}
+	if (window_switcher.is_active())
+		window_switcher.abort();
 	if (!app_switcher.is_active()) {
 		load_icon_textures();
 		app_switcher.show(app_id_focus_history, &app_id_to_stuff_map);
@@ -300,9 +299,8 @@ void WindowManager::handle_window_switching(bool backwards)
 	LOG_TRACE("backwards = {}", backwards);
 	if (app_switcher.is_active())
 		app_switcher.focus_selected();
-	if (!window_switcher.active) {
-		window_switcher.active = true;
-		auto last_window       = g_pCompositor->m_lastWindow;
+	if (!window_switcher.is_active()) {
+		auto last_window = g_pCompositor->m_lastWindow;
 		if (!last_window)
 			return;
 		auto it = app_id_to_stuff_map.find(last_window->m_class);

@@ -10,18 +10,17 @@
 /// and that's a ton of code that I do not want to write, especially when I find
 /// the current setup to be good enough.
 class WindowSwitcher {
-	std::vector<PHLWINDOWREF> windows;
+	std::vector<PHLWINDOWREF> app_windows;
+	std::vector<PHLWINDOW>    all_windows; // to restore z order
 	size_t                    idx;
+	bool                      active;
 
 public:
-	static bool active;
-
-	WindowSwitcher() : idx(0)
-	{
-		windows.reserve(10);
-		active = false;
-	}
+	WindowSwitcher() : idx(0), active(false) { app_windows.reserve(10); }
 
 	void seed(std::span<PHLWINDOWREF> windows);
 	void move(bool backwards);
+	void focus_selected();
+	void abort();
+	bool is_active();
 };
