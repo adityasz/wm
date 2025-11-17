@@ -75,7 +75,7 @@ void AppSwitcher::show(
 	);
 	wl_event_source_timer_update(timer, 100);
 
-	log(INFO, "[wm] show: {}", app_id_focus_history);
+	log(INFO, "show: {}", app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
@@ -240,7 +240,7 @@ void AppSwitcher::render()
 
 void AppSwitcher::reload_config()
 {
-	log(INFO, "[wm] AppSwitcher: reloading config");
+	LOG_TRACE("{}", "AppSwitcher: reloading config");
 
 	container_background_color =
 	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:container:background_color"));

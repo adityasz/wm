@@ -18,6 +18,7 @@ log([[maybe_unused]] eLogLevel                   level,
 {}
 #endif
 
+#define NDEBUG // FIXME: for some reason cmake's definition is not enough?
 #ifndef NDEBUG
 #define LOG_TRACE(fmt, ...) log(LOG, "{}: " fmt, __PRETTY_FUNCTION__, __VA_ARGS__)
 #else
