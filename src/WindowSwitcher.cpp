@@ -9,6 +9,8 @@ WindowSwitcher::WindowSwitcher() : idx(0), active(false) {}
 
 void WindowSwitcher::move(bool backwards)
 {
+	LOG_TRACE("backwards={}", backwards);
+
 	if (app_windows.empty())
 		return;
 
@@ -38,7 +40,9 @@ void WindowSwitcher::move(bool backwards)
 
 void WindowSwitcher::seed(std::span<PHLWINDOWREF> app_windows)
 {
-	LOG_TRACE("{}", "");
+	LOG_TRACE("{}", app_windows | std::views::transform([](auto &window) {
+		                return as_str(window);
+	                }) | std::ranges::to<std::vector>());
 
 	idx    = 0;
 	active = true;
@@ -83,6 +87,7 @@ void WindowSwitcher::focus_selected()
 	[[likely]]
 	if (auto window = app_windows[idx].lock()) {
 		log(INFO, "    switching to {}", as_str(window));
+		g_pCompositor->focusWindow(window);
 		g_pCompositor->changeWindowZOrder(window, true);
 		if (auto monitor = g_pCompositor->m_lastMonitor.lock())
 			g_pHyprRenderer->damageMonitor(monitor);
