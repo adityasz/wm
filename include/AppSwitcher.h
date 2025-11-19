@@ -57,7 +57,6 @@ public:
 	);
 	void move(bool backwards);
 	void focus_selected();
-	bool is_visible();
 	bool is_active();
 
 private:

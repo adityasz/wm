@@ -142,9 +142,7 @@ SDispatchResult WindowManager::focus_or_exec(int n)
 	    && window->m_workspace != last_monitor->m_activeSpecialWorkspace) {
 		last_monitor->setSpecialWorkspace(nullptr);
 	}
-	g_pCompositor->focusWindow(window);
-	g_pCompositor->changeWindowZOrder(window, true);
-
+	focus_and_raise_window(window);
 	return {};
 }
 
@@ -185,8 +183,7 @@ SDispatchResult WindowManager::move_or_exec(int n)
 		g_pCompositor->warpCursorTo(window->middle());
 	}
 	log(INFO, "focusing {}", as_str(window));
-	g_pCompositor->focusWindow(window);
-	g_pCompositor->changeWindowZOrder(window, true);
+	focus_and_raise_window(window);
 	return {};
 }
 

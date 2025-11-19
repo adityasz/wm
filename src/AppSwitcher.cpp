@@ -46,8 +46,7 @@ void AppSwitcher::focus_selected()
 	auto &windows    = app_stuff_map->at(app_id_focus_history[idx]).windows;
 	auto  window_ref = windows.front();
 	if (auto window = window_ref.lock()) {
-		g_pCompositor->focusWindow(window);
-		g_pCompositor->changeWindowZOrder(window, true);
+		focus_and_raise_window(window);
 	} else {
 		gch::erase(windows, window_ref);
 		log(INFO, "    {} became null", as_str(window_ref));

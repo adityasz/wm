@@ -27,8 +27,7 @@ void WindowSwitcher::move(bool backwards)
 	[[likely]]
 	if (auto window = app_windows[idx].lock()) {
 		log(INFO, "    switching to {}", as_str(window));
-		g_pCompositor->focusWindow(window, nullptr, true);
-		g_pCompositor->changeWindowZOrder(window, true);
+		focus_and_raise_window(window, nullptr, true);
 		return;
 	}
 
@@ -86,8 +85,7 @@ void WindowSwitcher::focus_selected()
 	[[likely]]
 	if (auto window = app_windows[idx].lock()) {
 		log(INFO, "    switching to {}", as_str(window));
-		g_pCompositor->focusWindow(window);
-		g_pCompositor->changeWindowZOrder(window, true);
+		focus_and_raise_window(window);
 		if (auto monitor = g_pCompositor->m_lastMonitor.lock())
 			g_pHyprRenderer->damageMonitor(monitor);
 		// else not our concern
