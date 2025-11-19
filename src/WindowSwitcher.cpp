@@ -1,6 +1,5 @@
 #include <algorithm>
 #include <ranges>
-#include <src/render/Renderer.hpp>
 
 #include "Logging.h"
 #include "WindowSwitcher.h"
@@ -42,7 +41,7 @@ void WindowSwitcher::seed(std::span<PHLWINDOWREF> app_windows)
 {
 	LOG_TRACE("{}", app_windows | std::views::transform([](auto &window) {
 		                return as_str(window);
-	                }) | std::ranges::to<std::vector>());
+	                }));
 
 	idx    = 0;
 	active = true;

@@ -8,7 +8,7 @@ project(wm
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_FLAGS "-Wall -Wpedantic -Wextra -march=native")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3 -ffast-math -flto=auto")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -ffast-math -flto=auto")
 
 add_subdirectory(external/small_vector)
 add_subdirectory(cmake/nkutils)

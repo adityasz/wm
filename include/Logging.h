@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Hyprland.h"
-#include <type_traits>
 
 #ifdef DEBUG_LOGS
 template <typename... Args>
@@ -18,7 +17,6 @@ log([[maybe_unused]] eLogLevel                   level,
 {}
 #endif
 
-#define NDEBUG // FIXME: for some reason cmake's definition is not enough?
 #ifndef NDEBUG
 #define LOG_TRACE(fmt, ...) log(LOG, "{}: " fmt, __PRETTY_FUNCTION__, __VA_ARGS__)
 #else
@@ -27,38 +25,35 @@ log([[maybe_unused]] eLogLevel                   level,
 	} while (0)
 #endif
 
+namespace detail {
 template <typename T>
-    requires std::is_convertible_v<T, PHLWINDOWREF>
-std::string as_str(const T &window)
-{
-	if (window) {
-		return std::format(
-		    "{}::{}:0x{:x}",
-		    window->m_class,
-		    window->m_title,
-		    reinterpret_cast<uintptr_t>(window.get())
-		);
-	} else {
-		return std::format(
-		    "window::nullptr",
-		    window->m_class,
-		    window->m_title,
-		    reinterpret_cast<uintptr_t>(window.get())
-		);
-	}
-}
+using DerefType = std::remove_cvref_t<decltype(*std::declval<T>())>;
 
-template <typename T>
-    requires std::is_convertible_v<T, PHLWORKSPACEREF>
-std::string as_str(const T &workspace)
-{
-	return std::format(
-	    "{}::0x{:x}", workspace->m_name, reinterpret_cast<uintptr_t>(workspace.get())
-	);
-}
+template <typename T, typename... Types>
+concept IsOneOf = (std::same_as<T, Types> || ...);
+} // namespace detail
 
+// FIXME: This is just a quick and dirty workaround. Hyprland defines
+// std::formatter for PHLWINDOW. It is a bit too verbose for my usage.
+// Revisit after I know enough C++ to somehow override that.
 template <typename T>
+    requires requires(T t) {
+	    { *t };
+	    { !t } -> std::convertible_to<bool>;
+	    std::to_address(t);
+    } && detail::IsOneOf<detail::DerefType<T>, CWindow, CWorkspace, CMonitor>
 std::string as_str(const T &thing)
 {
-	return std::format("0x{:x}", reinterpret_cast<uintptr_t>(thing.get()));
+	using Pointee = detail::DerefType<T>;
+
+	if (!thing)
+		return std::format("nullptr");
+
+	std::string desc;
+	if constexpr (std::same_as<Pointee, CWindow>)
+		desc = std::format("{}::{}", thing->m_class, thing->m_title);
+	else if constexpr (detail::IsOneOf<Pointee, CWorkspace, CMonitor>)
+		desc = std::format("{}::{}", thing->m_id, thing->m_name);
+
+	return std::format("{}:0x{:x}", desc, reinterpret_cast<uintptr_t>(std::to_address(thing)));
 }

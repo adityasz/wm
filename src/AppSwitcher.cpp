@@ -118,8 +118,7 @@ void AppSwitcher::render()
 {
 	LOG_TRACE("{}", "");
 
-	auto monitor = g_pCompositor->m_lastMonitor.lock();
-	if (!monitor) {
+	if (auto monitor = g_pCompositor->m_lastMonitor.lock(); !monitor) {
 		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
 		return;
 	}

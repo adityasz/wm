@@ -177,7 +177,7 @@ SDispatchResult WindowManager::move_or_exec(int n)
 	    window->m_workspace != active_workspace) {
 		log(INFO,
 		    "moving {} from workspace '{}' to the active workspace '{}'",
-		    as_str(window),
+		    window,
 		    window->m_workspace->m_name,
 		    active_workspace->m_name);
 		g_pCompositor->moveWindowToWorkspaceSafe(window, active_workspace);
@@ -306,7 +306,6 @@ void WindowManager::handle_window_switching(bool backwards)
 		auto it = app_id_to_stuff_map.find(last_window->m_class);
 		if (it == app_id_to_stuff_map.end())
 			return;
-		;
 		window_switcher.seed(it->second.windows);
 	}
 	window_switcher.move(backwards);
