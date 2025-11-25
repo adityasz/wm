@@ -171,7 +171,7 @@ AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initi
 	std::string icon_name;
 	try {
 		desktop_file->load_from_file(desktop_file_path);
-		auto app_name = desktop_file->get_string("Desktop Entry", "Name");
+		app_name = desktop_file->get_string("Desktop Entry", "Name");
 	} catch (...) {
 		return std::make_unique<AppInfo>(app_id, Image{});
 	}
