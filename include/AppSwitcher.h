@@ -57,10 +57,10 @@ public:
 	);
 	void move(bool backwards);
 	void focus_selected();
-	bool is_active();
+	bool is_active() const;
 
 private:
-	std::expected<CBox, std::monostate> get_container_box();
+	std::expected<CBox, std::monostate> get_container_box() const;
 	void                                render();
 	void                                hide();
 

@@ -22,9 +22,9 @@ class WindowSwitcher {
 public:
 	WindowSwitcher();
 
-	void seed(std::span<PHLWINDOWREF> windows);
-	void move(bool backwards);
-	void focus_selected();
-	void abort();
-	bool is_active();
+	void               seed(std::span<PHLWINDOWREF> app_windows);
+	void               move(bool backwards);
+	void               focus_selected();
+	void               abort();
+	[[nodiscard]] bool is_active() const;
 };

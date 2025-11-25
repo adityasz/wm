@@ -13,7 +13,7 @@ AppSwitcher::AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr
 	reload_config();
 }
 
-bool AppSwitcher::is_active() { return active; }
+bool AppSwitcher::is_active() const { return active; }
 
 void AppSwitcher::move(bool backwards)
 {
@@ -87,15 +87,15 @@ void AppSwitcher::show(
 void AppSwitcher::hide()
 {
 	LOG_TRACE("{}", "");
-	active  = false;
-	visible = false;
 	if (visible) {
 		wl_event_source_remove(timer);
 		timer = nullptr;
 	}
+	active  = false;
+	visible = false;
 }
 
-std::expected<CBox, std::monostate> AppSwitcher::get_container_box()
+std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 {
 	size_t num_icons = app_id_focus_history.size();
 	double total_width =

@@ -1,7 +1,5 @@
 #pragma once
 
-#include <gch/small_vector.hpp>
-
 #include "AppSwitcher.h"
 #include "WindowSwitcher.h"
 
@@ -45,7 +43,7 @@ public:
 	/// it to the current workspace if needed, or launch it.
 	SDispatchResult        move_or_exec(int n);
 
-	SDispatchResult        dump_debug_info();
+	SDispatchResult dump_debug_info();
 
 private:
 	void load_icon_textures();

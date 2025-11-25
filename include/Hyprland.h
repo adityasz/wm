@@ -26,4 +26,6 @@
 #include <hyprutils/math/Vector2D.hpp>
 #undef private
 
-void focus_and_raise_window(PHLWINDOW window, SP<CWLSurfaceResource> pSurface = nullptr, bool preserveFocusHistory = false);
+void focus_and_raise_window(
+    PHLWINDOW window, SP<CWLSurfaceResource> pSurface = nullptr, bool preserveFocusHistory = false
+);

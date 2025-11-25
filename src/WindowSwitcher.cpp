@@ -17,7 +17,7 @@ void WindowSwitcher::move(bool backwards)
 		if (idx)
 			idx--;
 		else
-			idx = app_windows.size() - 1;
+			idx = static_cast<int>(app_windows.size()) - 1;
 	} else {
 		idx++;
 		if (idx == static_cast<int>(app_windows.size()))
@@ -106,4 +106,4 @@ void WindowSwitcher::abort()
 	// else not our concern
 }
 
-bool WindowSwitcher::is_active() { return active; }
+bool WindowSwitcher::is_active() const { return active; }
