@@ -45,6 +45,8 @@ public:
 	/// it to the current workspace if needed, or launch it.
 	SDispatchResult        move_or_exec(int n);
 
+	SDispatchResult        dump_debug_info();
+
 private:
 	void load_icon_textures();
 	void handle_window_switching(bool backwards);

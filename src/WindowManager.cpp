@@ -313,3 +313,27 @@ void WindowManager::render_app_switcher()
 	if (app_switcher.is_active())
 		g_pHyprRenderer->m_renderPass.add(makeUnique<AppSwitcherPassElement>(&app_switcher));
 }
+
+SDispatchResult WindowManager::dump_debug_info()
+{
+	log(LOG,
+	    "Compositor windows: {}",
+	    g_pCompositor->m_windows
+	        | std::views::transform([](auto &window) { return as_str(window); }));
+	log(LOG,
+	    "Compositor focus history: {}",
+	    g_pCompositor->m_windowFocusHistory
+	        | std::views::transform([](auto &window) { return as_str(window); }));
+	log(LOG, "WM:");
+	load_icon_textures();
+	for (const auto &app_id : app_id_focus_history) {
+		auto &[windows, app_info] = app_id_to_stuff_map.at(app_id);
+		std::string app_name = "<future>";
+		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
+			app_name = app_render_data->app_name;
+		log(LOG, "{:<4}{}: {}", "", app_id, app_name);
+		for (const auto &window : windows)
+			log(LOG, "{:<8}{}", "", as_str(window));
+	}
+	return {};
+}

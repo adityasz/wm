@@ -25,22 +25,8 @@
 // discriminant/tag.
 static std::optional<WindowManager> window_manager;
 
-APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
-
-APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
+void add_default_config()
 {
-	PHANDLE = handle;
-
-	if (__hyprland_api_get_hash() != std::string_view(GIT_COMMIT_HASH)) {
-		HyprlandAPI::addNotification(
-		    PHANDLE,
-		    "[wm] Failure in initialization: Version mismatch (headers ver != running ver)",
-		    CHyprColor{1.0, 0.2, 0.2, 1.0},
-		    5000
-		);
-		throw std::runtime_error("[wm] version mismatch");
-	}
-
 	using Hyprlang::INT;
 	using Hyprlang::STRING;
 	using Hyprlang::FLOAT;
@@ -64,11 +50,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 	add_config("app_switcher:icons:size", INT{160});
 	add_config("app_switcher:icons:separation", INT{20});
 	add_config("app_switcher:icons:theme", STRING{""});
+}
 
-	HyprlandAPI::reloadConfig();
-
-	window_manager.emplace();
-
+void register_callbacks()
+{
 	// Hyprland calls these with nullptr sometimes
 	REGISTER_CALLBACK(openWindow, {
 		if (auto window = std::any_cast<PHLWINDOW>(data))
@@ -82,33 +67,61 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 		if (auto window = std::any_cast<PHLWINDOW>(data))
 			window_manager->on_close_window(window);
 	});
-
 	REGISTER_CALLBACK(keyPress, {
 		auto skeyevent = std::any_cast<IKeyboard::SKeyEvent>(
 		    std::any_cast<std::unordered_map<std::string, std::any>>(data)["event"]
 		);
 		info.cancelled = window_manager->on_key_press(skeyevent.keycode, skeyevent.state);
 	});
-
 	REGISTER_CALLBACK(render, {
 		if (std::any_cast<eRenderStage>(data) == eRenderStage::RENDER_LAST_MOMENT) {
 			window_manager->render_app_switcher();
 		}
 	});
-
 	REGISTER_CALLBACK(configReloaded, { window_manager->reload_config(); });
+}
 
+void register_dispatchers()
+{
 	bool success  = true;
 	success      &= ADD_DISPATCHER(exec, { return window_manager->exec(std::stoi(arg)); });
 	success &=
 	    ADD_DISPATCHER(focusorexec, { return window_manager->focus_or_exec(std::stoi(arg)); });
 	success &=
 	    ADD_DISPATCHER(moveorexec, { return window_manager->move_or_exec(std::stoi(arg)); });
+	success &= ADD_DISPATCHER(debuginfo, { return window_manager->dump_debug_info(); });
 	if (!success) {
 		auto error = "[wm] Failed to register dispatchers";
 		HyprlandAPI::addNotification(PHANDLE, error, CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
 		throw std::runtime_error(error);
 	}
+}
+
+APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
+
+APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
+{
+	PHANDLE = handle;
+
+	if (__hyprland_api_get_hash() != std::string_view(GIT_COMMIT_HASH)) {
+		HyprlandAPI::addNotification(
+		    PHANDLE,
+		    "[wm] Failure in initialization: Version mismatch (headers ver != running ver)",
+		    CHyprColor{1.0, 0.2, 0.2, 1.0},
+		    5000
+		);
+		throw std::runtime_error("[wm] version mismatch");
+	}
+
+	add_default_config();
+
+	HyprlandAPI::reloadConfig();
+
+	window_manager.emplace();
+
+	register_callbacks();
+
+	register_dispatchers();
 
 	log(INFO, "initialized");
 
