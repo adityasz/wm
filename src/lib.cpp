@@ -1,5 +1,4 @@
 #include "Globals.h"
-#include "Logging.h"
 #include "WindowManager.h"
 
 #define WLR_USE_UNSTABLE
@@ -19,38 +18,7 @@
 	    []([[maybe_unused]] const std::string &arg)->SDispatchResult lambdaBody                   \
 	)
 
-// This is initialized after the handle is set.
-//
-// `static` should be enough for the optimizer to get rid of the redundant
-// discriminant/tag.
-static std::optional<WindowManager> window_manager;
-
-void add_default_config()
-{
-	using Hyprlang::INT;
-	using Hyprlang::STRING;
-	using Hyprlang::FLOAT;
-
-	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++) {
-		add_config(std::format("app_{}:class", i), STRING{""});
-		add_config(std::format("app_{}:command", i), STRING{""});
-	}
-	add_config("app_switcher:container:background_color", INT{0xaa'ff'ff'ff});
-	add_config("app_switcher:container:border_color", INT{0x88'80'80'80});
-	add_config("app_switcher:container:padding", INT{20});
-	add_config("app_switcher:container:radius", INT{15});
-	add_config("app_switcher:container:border_width", INT{2});
-	add_config("app_switcher:selection:background_color", INT{0x11'00'00'00});
-	add_config("app_switcher:selection:padding", INT{20});
-	add_config("app_switcher:selection:radius", INT{12});
-	add_config("app_switcher:label:font_family", STRING{"Inter"});
-	add_config("app_switcher:label:font_color", INT{0xff'ff'ff});
-	add_config("app_switcher:label:font_size", INT{14});
-	add_config("app_switcher:label:separation", INT{40});
-	add_config("app_switcher:icons:size", INT{160});
-	add_config("app_switcher:icons:separation", INT{20});
-	add_config("app_switcher:icons:theme", STRING{""});
-}
+static std::optional<WindowManager> window_manager; // initialized after the handle is set
 
 void register_callbacks()
 {
@@ -103,17 +71,42 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
 	PHANDLE = handle;
 
-	if (__hyprland_api_get_hash() != std::string_view(GIT_COMMIT_HASH)) {
-		HyprlandAPI::addNotification(
-		    PHANDLE,
-		    "[wm] Failure in initialization: Version mismatch (headers ver != running ver)",
-		    CHyprColor{1.0, 0.2, 0.2, 1.0},
-		    5000
+	auto compositor_hash = __hyprland_api_get_hash();
+	auto client_hash     = __hyprland_api_get_client_hash();
+	if (strcmp(compositor_hash, client_hash)) {
+		auto error = std::format(
+		    "[wm] Failure in initialization: Version mismatch (headers ver = {} != {} = "
+		    "running ver)",
+		    compositor_hash,
+		    client_hash
 		);
-		throw std::runtime_error("[wm] version mismatch");
+		HyprlandAPI::addNotification(PHANDLE, error, CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
+		throw std::runtime_error(error);
 	}
 
-	add_default_config();
+	using Hyprlang::INT;
+	using Hyprlang::STRING;
+	using Hyprlang::FLOAT;
+
+	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++) {
+		add_config(std::format("app_{}:class", i), STRING{""});
+		add_config(std::format("app_{}:command", i), STRING{""});
+	}
+	add_config("app_switcher:container:background_color", INT{0xaa'ff'ff'ff});
+	add_config("app_switcher:container:border_color", INT{0x88'80'80'80});
+	add_config("app_switcher:container:padding", INT{20});
+	add_config("app_switcher:container:radius", INT{15});
+	add_config("app_switcher:container:border_width", INT{2});
+	add_config("app_switcher:selection:background_color", INT{0x11'00'00'00});
+	add_config("app_switcher:selection:padding", INT{20});
+	add_config("app_switcher:selection:radius", INT{12});
+	add_config("app_switcher:label:font_family", STRING{"Inter"});
+	add_config("app_switcher:label:font_color", INT{0xff'ff'ff});
+	add_config("app_switcher:label:font_size", INT{14});
+	add_config("app_switcher:label:separation", INT{40});
+	add_config("app_switcher:icons:size", INT{160});
+	add_config("app_switcher:icons:separation", INT{20});
+	add_config("app_switcher:icons:theme", STRING{""});
 
 	HyprlandAPI::reloadConfig();
 
@@ -123,10 +116,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
 	register_dispatchers();
 
-	log(INFO, "initialized");
-
 	return {
-	    "wm", "app switcher, window switcher, and a couple of dispatchers", "Aditya Singh", "0.1"
+	    "wm", "window manager, app switcher, window switcher, and a couple of dispatchers", "Aditya Singh", "0.1"
 	};
 }
 
