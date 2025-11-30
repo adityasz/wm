@@ -42,7 +42,7 @@ void register_callbacks()
 		info.cancelled = window_manager->on_key_press(skeyevent.keycode, skeyevent.state);
 	});
 	REGISTER_CALLBACK(render, {
-		if (std::any_cast<eRenderStage>(data) == eRenderStage::RENDER_LAST_MOMENT) {
+		if (std::any_cast<eRenderStage>(data) == eRenderStage::RENDER_POST_WINDOWS) {
 			window_manager->render_app_switcher();
 		}
 	});

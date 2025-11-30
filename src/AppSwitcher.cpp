@@ -117,7 +117,8 @@ void AppSwitcher::render()
 {
 	LOG_TRACE("{}", "");
 
-	if (auto monitor = g_pCompositor->m_lastMonitor.lock(); !monitor) {
+	auto monitor = g_pCompositor->m_lastMonitor.lock();
+	if (!monitor) {
 		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
 		return;
 	}
@@ -229,11 +230,11 @@ void AppSwitcher::render()
 		icon_x     += icon_size + icon_sep;
 	}
 
-	// TODO: damage shadow box
-	if (container_border_width > 0)
-		g_pHyprRenderer->damageBox(border_box);
-	else
-		g_pHyprRenderer->damageBox(container_box);
+	// FIXME: I do not think the whole monitor needs to be damaged. But if I
+	// just damage the container/border boxes, wallpaper leaks through the
+	// container instead of the window below if the container is open above a
+	// JetBrains XWayland window. Tried RENDER_LAST_MOMENT as well.
+	g_pHyprRenderer->damageMonitor(monitor);
 }
 
 void AppSwitcher::reload_config()
