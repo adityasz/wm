@@ -92,20 +92,20 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 		add_config(std::format("app_{}:class", i), STRING{""});
 		add_config(std::format("app_{}:command", i), STRING{""});
 	}
-	add_config("app_switcher:container:background_color", INT{0xaa'ff'ff'ff});
-	add_config("app_switcher:container:border_color", INT{0x88'80'80'80});
+	add_config("app_switcher:container:background_color", INT{0x11'ff'ff'ff});
+	add_config("app_switcher:container:border_color", INT{0x11'80'80'80});
 	add_config("app_switcher:container:padding", INT{20});
-	add_config("app_switcher:container:radius", INT{15});
-	add_config("app_switcher:container:border_width", INT{2});
+	add_config("app_switcher:container:radius", INT{35});
+	add_config("app_switcher:container:border_width", INT{1});
 	add_config("app_switcher:selection:background_color", INT{0x11'00'00'00});
-	add_config("app_switcher:selection:padding", INT{20});
-	add_config("app_switcher:selection:radius", INT{12});
+	add_config("app_switcher:selection:padding", INT{10});
+	add_config("app_switcher:selection:radius", INT{30});
 	add_config("app_switcher:label:font_family", STRING{"Inter"});
 	add_config("app_switcher:label:font_color", INT{0xff'ff'ff});
-	add_config("app_switcher:label:font_size", INT{14});
-	add_config("app_switcher:label:separation", INT{40});
-	add_config("app_switcher:icons:size", INT{160});
-	add_config("app_switcher:icons:separation", INT{20});
+	add_config("app_switcher:label:font_size", INT{0});
+	add_config("app_switcher:label:separation", INT{0});
+	add_config("app_switcher:icons:size", INT{120});
+	add_config("app_switcher:icons:separation", INT{40});
 	add_config("app_switcher:icons:theme", STRING{""});
 
 	HyprlandAPI::reloadConfig();
