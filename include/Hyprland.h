@@ -4,12 +4,13 @@
 #include <any>
 #include <chrono>
 #include <queue>
+#include <ranges>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <vector>
 
-#define private public // CKeybindManager::{switchToWindow, bringActiveToTop, spawn}, ...
+// #define private public
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
@@ -24,8 +25,4 @@
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprlang.hpp>
 #include <hyprutils/math/Vector2D.hpp>
-#undef private
-
-void focus_and_raise_window(
-    PHLWINDOW window, SP<CWLSurfaceResource> pSurface = nullptr, bool preserveFocusHistory = false
-);
+// #undef private

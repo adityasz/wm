@@ -1,15 +1,16 @@
-#pragma once
-
-#include <span>
-#include <vector>
+module;
 
 #include "Hyprland.h"
+
+export module wm.WindowSwitcher;
+
+import std;
 
 /// We can have a window switcher that displays previews (above/below the app
 /// switcher if it is open). But that would require taking a snapshot of windows
 /// and that's a ton of code that I do not want to write, especially when I find
 /// the current setup to be good enough.
-class WindowSwitcher {
+export class WindowSwitcher {
 	// WindowManager::on_touch_window does not modify this when active = true
 	std::span<PHLWINDOWREF> app_windows;
 	// All windows of the app are raised when window switching starts.

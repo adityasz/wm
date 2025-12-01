@@ -1,5 +1,10 @@
 #include "Globals.h"
-#include "WindowManager.h"
+
+import std;
+import wm;
+
+// TODO: get this from build system
+static constexpr int NUM_QUICK_ACCESS_APPS = 10;
 
 #define WLR_USE_UNSTABLE
 
@@ -17,6 +22,8 @@
 	    "wm:" #dispatcher,                                                                        \
 	    []([[maybe_unused]] const std::string &arg)->SDispatchResult lambdaBody                   \
 	)
+
+using namespace wm;
 
 static std::optional<WindowManager> window_manager; // initialized after the handle is set
 
@@ -117,7 +124,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 	register_dispatchers();
 
 	return {
-	    "wm", "window manager, app switcher, window switcher, and a couple of dispatchers", "Aditya Singh", "0.1"
+	    "wm", "layout, app switcher, window switcher, and some dispatchers", "Aditya Singh", "0.1"
 	};
 }
 

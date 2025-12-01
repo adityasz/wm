@@ -1,20 +1,13 @@
-#pragma once
+module;
 
-#include <future>
-#include <queue>
-#include <thread>
-#include <unordered_map>
+#include "nkutils.h"
 
-#include <glib.h>
+export module wm.Support.AppInfoLoader;
 
-#include "Image.h"
+import std;
+import wm.Support.Image;
 
-inline static constexpr auto MAX_ENTRIES = 50;
-
-extern "C" {
-#include "nkutils-xdg-theme.h"
-}
-
+export namespace wm {
 struct AppInfo {
 	std::string name;
 	Image       icon;
@@ -31,7 +24,7 @@ class AppInfoLoader {
 	/// open apps are never removed from this cache
 	std::unordered_map<std::string, std::unique_ptr<AppInfo>> cache;
 	std::vector<std::string>                                  app_dirs;
-	std::vector<const gchar *>                                themes;
+	std::vector<const char *>                                 themes;
 	NkXdgThemeContext                                        *theme_context;
 	std::queue<Task>                                          task_queue;
 	std::mutex                                                mtx;
@@ -40,8 +33,7 @@ class AppInfoLoader {
 	int                                                       icon_size;
 	bool                                                      shutdown_flag;
 
-	static const gchar *icon_fallbacks[];
-	static const gchar *sound_fallbacks[];
+	static constexpr int                                      max_cache_entries = 50;
 
 public:
 	AppInfoLoader();
@@ -57,8 +49,11 @@ public:
 
 private:
 	void worker_thread();
-	std::string
+
+	[[nodiscard]] std::string
 	get_desktop_file_path(std::string_view app_id, std::string_view initial_app_id) const;
-	std::unique_ptr<AppInfo>
+
+	[[nodiscard]] std::unique_ptr<AppInfo>
 	load_app_info(const std::string &app_id, const std::string &initial_app_id) const;
 };
+} // namespace wm

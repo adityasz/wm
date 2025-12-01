@@ -1,25 +1,35 @@
-#pragma once
+module;
 
 #include <gch/small_vector.hpp>
 
-#include "AppInfoLoader.h"
+#include <future>
 #include "Hyprland.h"
+
+export module wm.AppSwitcher;
+
+import std;
+import wm.Support.AppInfoLoader;
 
 using Hyprlang::SVector2D;
 
-struct AppRenderData {
+using namespace wm;
+
+namespace wm {
+export struct AppRenderData {
 	std::string  app_name;
 	SP<CTexture> icon_texture;
 };
 
-struct AppStuff {
+export struct AppStuff {
 	gch::small_vector<PHLWINDOWREF, 3>                  windows;
 	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
 };
 
+export class AppSwitcherPassElement;
+
 /// Once we have a better window switcher, we can have a common base class or
 /// something
-class AppSwitcher {
+export class AppSwitcher {
 	std::span<std::string>                             app_id_focus_history;
 	std::unordered_map<std::string, AppStuff>         *app_stuff_map;
 	size_t                                             idx;
@@ -55,15 +65,32 @@ public:
 	    std::span<std::string>                     app_id_focus_history,
 	    std::unordered_map<std::string, AppStuff> *app_stuff_map
 	);
-	void move(bool backwards);
-	void focus_selected();
-	bool is_active() const;
+	void               move(bool backwards);
+	void               focus_selected();
+	[[nodiscard]] bool is_active() const;
 
 private:
-	std::expected<CBox, std::monostate> get_container_box() const;
-	void                                render();
-	void                                hide();
+	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
+	void                                              render();
+	void                                              hide();
 
 	friend class AppSwitcherPassElement;
-	friend class WindowManager;
 };
+
+class AppSwitcherPassElement final : public IPassElement {
+public:
+	explicit AppSwitcherPassElement(AppSwitcher *instance);
+	~AppSwitcherPassElement() override = default;
+
+	void                draw(const CRegion &damage) override;
+	bool                needsLiveBlur() override;
+	bool                needsPrecomputeBlur() override;
+	std::optional<CBox> boundingBox() override;
+	CRegion             opaqueRegion() override;
+
+	const char *passName() override { return "AppSwitcherPassElement"; }
+
+private:
+	AppSwitcher *instance;
+};
+} // namespace wm

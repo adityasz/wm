@@ -1,9 +1,12 @@
-#include "AppSwitcherPassElement.h"
-#include "AppSwitcher.h"
+module;
+
+#include "Hyprland.h"
+
+module wm.AppSwitcher;
+
+using namespace wm;
 
 // Lifted from https://github.com/yz778/hyprview.
-//
-// I may be using these incorrectly (haven't looked at Hyprland's rendering pipeline)
 
 AppSwitcherPassElement::AppSwitcherPassElement(AppSwitcher *instance) : instance(instance) {}
 

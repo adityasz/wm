@@ -1,26 +1,31 @@
-#include <condition_variable>
-#include <filesystem>
-#include <future>
-#include <mutex>
-#include <thread>
+module;
 
 #include <glibmm/keyfile.h>
 #include <gtkmm.h>
 
-#include "AppInfoLoader.h"
-#include "Globals.h"
-#include "Image.h"
-#include "Logging.h"
+#include "nkutils.h"
+#include "Hyprland.h"
 
-const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
-const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
+module wm.Support.AppInfoLoader;
+
+import wm.Support.Image;
+import wm.Support.Utils;
+
+import std;
+
+
+namespace wm {
+namespace {
+const gchar *icon_fallbacks[]  = {"hicolor", nullptr};
+const gchar *sound_fallbacks[] = {nullptr};
+}
 
 AppInfoLoader::AppInfoLoader() :
     theme_context(nk_xdg_theme_context_new(icon_fallbacks, sound_fallbacks)),
     worker(&AppInfoLoader::worker_thread, this),
     shutdown_flag(false)
 {
-	cache.reserve(MAX_ENTRIES);
+	cache.reserve(max_cache_entries);
 	app_dirs = Glib::get_system_data_dirs();
 	app_dirs.insert(app_dirs.begin(), Glib::get_user_data_dir());
 	for (auto &data_dir : app_dirs)
@@ -101,6 +106,8 @@ get_file_by_suffix(std::string_view dir, std::string_view suffix, bool check_low
 // The implementation assumes that all desktop files end with <app_id>.desktop.
 // This is not something I saw as being required by the XDG Desktop Entry
 // specification, but most distros name them this way (at least Fedora does).
+// Stuff installed through JetBrains Toolbox has a random hex string appended
+// before the file extension, but a symlink can be used as a workaround.
 // Also, suffix matching can lead to false positives.
 //
 // The right way would be to get cmdline from the pid and then use that to
@@ -124,8 +131,8 @@ get_file_by_suffix(std::string_view dir, std::string_view suffix, bool check_low
 // Fixes are welcome, but this isn't something I would spend my time on (at most
 // an hour of work, but still). After all, a plugin is not the right place to
 // implement what I wrote above: There should ideally be a standard that handles
-// this, so that everyone benefits. (Vicinae probably has a good cache, and idk
-// if this plugin can access it.)
+// this, so that everyone benefits. (Vicinae probably has a good cache, but I
+// don't think this plugin can access it.)
 std::string
 AppInfoLoader::get_desktop_file_path(std::string_view app_id, std::string_view initial_app_id) const
 {
@@ -158,10 +165,8 @@ std::unique_ptr<AppInfo>
 AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initial_app_id) const
 {
 	auto desktop_file_path = get_desktop_file_path(app_id, initial_app_id);
-	if (desktop_file_path.empty()) {
-		log(INFO, "desktop file not found for {}/{}", app_id, initial_app_id);
+	if (desktop_file_path.empty())
 		return std::make_unique<AppInfo>(app_id, Image{});
-	}
 
 	auto desktop_file = Glib::KeyFile::create();
 	if (!desktop_file)
@@ -258,12 +263,12 @@ AppInfoLoader::get_app_info(const std::string &app_id, const std::string &initia
 void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
 {
 	std::lock_guard lk(mtx);
-	if (cache.size() <= MAX_ENTRIES)
+	if (cache.size() <= max_cache_entries)
 		return;
 
 	size_t size_before_pruning = cache.size();
 	for (auto it = cache.begin(); it != cache.end();) {
-		if (cache.size() <= MAX_ENTRIES)
+		if (cache.size() <= max_cache_entries)
 			break;
 		if (!std::ranges::contains(app_ids_to_keep, it->first))
 			it = cache.erase(it);
@@ -271,10 +276,11 @@ void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
 			++it;
 	}
 
-	if (cache.size() < size_before_pruning && cache.size() <= MAX_ENTRIES) {
+	if (cache.size() < size_before_pruning && cache.size() <= max_cache_entries) {
 		std::unordered_map new_map(
 		    std::make_move_iterator(cache.begin()), std::make_move_iterator(cache.end())
 		);
 		cache.swap(new_map);
 	}
 }
+} // namespace wm

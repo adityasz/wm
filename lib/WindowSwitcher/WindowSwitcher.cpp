@@ -1,8 +1,14 @@
-#include <algorithm>
-#include <ranges>
+module;
 
+#include "Hyprland.h"
 #include "Logging.h"
-#include "WindowSwitcher.h"
+
+module wm.WindowSwitcher;
+
+import std;
+import wm.Support.Utils;
+
+using namespace wm;
 
 WindowSwitcher::WindowSwitcher() : idx(0), active(false) {}
 

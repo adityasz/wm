@@ -1,13 +1,14 @@
-#include <cmath>
-#include <fstream>
-#include <vector>
+module;
 
 #include <librsvg/rsvg.h>
 #include <spng.h>
 #include <turbojpeg.h>
 
-#include "Image.h"
+module wm.Support.Image;
 
+import std;
+
+namespace wm {
 static std::vector<uint8_t> read_file(std::string_view path)
 {
 	try {
@@ -62,8 +63,8 @@ static Image load_png(std::span<uint8_t> data)
 
 	return {
 	    std::move(buffer),
-	    ihdr.width,
-	    ihdr.height,
+	    static_cast<int32_t>(ihdr.width),
+	    static_cast<int32_t>(ihdr.height),
 	    fmt == SPNG_FMT_RGBA8 ? ImageFormat::RGBA : ImageFormat::RGB
 	};
 }
@@ -98,8 +99,8 @@ static Image load_jpg(std::span<uint8_t> data)
 
 	return {
 	    std::move(buffer),
-	    static_cast<uint32_t>(width),
-	    static_cast<uint32_t>(height),
+	    width,
+	    height,
 	    ImageFormat::RGB
 	};
 }
@@ -152,8 +153,8 @@ static Image load_svg(const char *path, int target_size)
 
 	return {
 	    std::move(buffer),
-	    static_cast<uint32_t>(width),
-	    static_cast<uint32_t>(height),
+	    width,
+	    height,
 	    ImageFormat::BGRA
 	};
 }
@@ -169,3 +170,4 @@ Image read_image(std::string_view path, int size)
 		return load_jpg(data);
 	return {};
 }
+} // namespace wm

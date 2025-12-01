@@ -1,5 +1,10 @@
+module;
+
 #include "Hyprland.h"
 
+module wm.Support.Utils;
+
+namespace wm {
 void focus_and_raise_window(
     PHLWINDOW window, SP<CWLSurfaceResource> pSurface, bool preserveFocusHistory
 )
@@ -15,3 +20,4 @@ void focus_and_raise_window(
 		window->setGroupCurrent(window);
 	g_pCompositor->changeWindowZOrder(window, true);
 }
+} // namespace wm

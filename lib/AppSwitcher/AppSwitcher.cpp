@@ -1,11 +1,17 @@
-#include <expected>
-#include <variant>
+module;
 
-#include "AppSwitcher.h"
-#include "Globals.h"
+#include <gch/small_vector.hpp>
+
+#include "Hyprland.h"
 #include "Logging.h"
 
+module wm.AppSwitcher;
+
+import wm.Support;
+
 using namespace std::chrono_literals;
+
+using namespace wm;
 
 AppSwitcher::AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr)
 {
@@ -171,9 +177,12 @@ void AppSwitcher::render()
 	    static_cast<double>(icon_size),
 	    static_cast<double>(font_height)
 	};
-	for (const auto &[i, app_id] : app_id_focus_history | std::views::enumerate) {
+
+	// clang/libcxx 21 do not have std::views::enumerate?!
+	size_t i = 0;
+	for (const auto &app_id : app_id_focus_history) {
 		// Draw selection highlight if this is the selected app
-		if (static_cast<size_t>(i) == idx) {
+		if (i == idx) {
 			CBox selection_box = {
 			    icon_x - selection_padding,
 			    icon_y - selection_padding,
@@ -186,6 +195,7 @@ void AppSwitcher::render()
 			selection_data.blur  = true;
 			g_pHyprOpenGL->renderRect(selection_box, selection_background_color, selection_data);
 		}
+		i++;
 
 		auto &[_, app_stuff] = *app_stuff_map->find(app_id);
 		auto data_ptr        = std::get_if<AppRenderData>(&app_stuff.app_info);
@@ -199,7 +209,7 @@ void AppSwitcher::render()
 
 		if (icon_texture && icon_texture->m_texID) {
 			CRegion damage = icon_box;
-			g_pHyprOpenGL->renderTextureInternal(
+			g_pHyprOpenGL->renderTexture(
 			    icon_texture,
 			    icon_box,
 			    {.damage = &damage, .a = 1.0, .round = 0, .cmBackToSRGBSource = nullptr}
@@ -217,7 +227,7 @@ void AppSwitcher::render()
 			text_box.x        -= text_width / 2.0;
 			text_box.w         = text_width;
 			CRegion damage     = text_box;
-			g_pHyprOpenGL->renderTextureInternal(
+			g_pHyprOpenGL->renderTexture(
 			    text_texture,
 			    text_box,
 			    {.damage = &damage, .a = 1.0, .round = 0, .cmBackToSRGBSource = nullptr}

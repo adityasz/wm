@@ -1,19 +1,24 @@
-#include "WindowManager.h"
-#include "AppInfoLoader.h"
-#include "AppSwitcherPassElement.h"
-#include "Globals.h"
+module;
+
+#include <gch/small_vector.hpp>
 #include "Logging.h"
 
-using namespace std::chrono_literals;
+module wm.WindowManager;
 
-std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> WindowManager::quick_access_apps = [] {
-	std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> arr;
-	arr.fill({"", nullptr});
-	return arr;
-}();
+import std;
+import wm.Support;
+
+using namespace wm;
+using namespace std::chrono_literals;
 
 WindowManager::WindowManager()
 {
+	quick_access_apps = [] {
+		std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> arr;
+		arr.fill({"", nullptr});
+		return arr;
+	}();
+
 	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
 		quick_access_apps[i].command = get_config<char>(std::format("app_{}:command", i));
 
@@ -112,7 +117,7 @@ SDispatchResult WindowManager::exec(int n)
 		return oob(n);
 
 	log(INFO, "executing {}", *quick_access_apps[n].command);
-	CKeybindManager::spawn(*quick_access_apps[n].command);
+	// CKeybindManager::spawn(*quick_access_apps[n].command); // TODO: private method
 	return {};
 }
 
@@ -328,7 +333,7 @@ SDispatchResult WindowManager::dump_debug_info()
 	load_icon_textures();
 	for (const auto &app_id : app_id_focus_history) {
 		auto &[windows, app_info] = app_id_to_stuff_map.at(app_id);
-		std::string app_name = "<future>";
+		std::string app_name      = "<future>";
 		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
 			app_name = app_render_data->app_name;
 		log(LOG, "{:<4}{}: {}", "", app_id, app_name);

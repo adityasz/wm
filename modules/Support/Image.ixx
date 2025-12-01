@@ -1,9 +1,11 @@
-#pragma once
+export module wm.Support.Image;
 
-#include <cstdint>
-#include <memory>
-#include <string>
+import std;
 
+using std::uint8_t;
+using std::int32_t;
+
+export namespace wm {
 enum class ImageFormat : uint8_t {
 	RGB,
 	RGBA,
@@ -12,9 +14,10 @@ enum class ImageFormat : uint8_t {
 
 struct Image {
 	std::unique_ptr<uint8_t[]> buffer;
-	uint32_t                   width;
-	uint32_t                   height;
+	int32_t                    width;
+	int32_t                    height;
 	ImageFormat                format;
 };
 
 Image read_image(std::string_view path, int size);
+} // namespace wm
