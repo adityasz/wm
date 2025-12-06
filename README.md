@@ -1,9 +1,7 @@
 # WM
 
 A Hyprland plugin that provides app and window switchers and some
-dispatchers.
-
-## Dispatchers
+dispatchers:
 
 | Dispatcher    | Description                                                                                                                                 | Params |
 |---------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------|
@@ -36,7 +34,8 @@ the `cmake -B build -S .` command):
   Use [<kbd>shift</kbd>]<kbd>tab</kbd> for switching between applications, and
   [<kbd>shift</kbd>]<kbd>\`</kbd> for switching between windows of an app. These
   are hardcoded in
-  [`src/WindowManager.cpp`](src/WindowManager.cpp)`:WindowManager::on_key_press(uint32_t, wl_keyboard_key_state)`.
+  [`lib/WindowManager/WindowManager.cpp`](lib/WindowManager/WindowManager.cpp)
+  `:WindowManager::on_key_press(uint32_t, wl_keyboard_key_state)`.
   It is essential to keep these values compile time constants since this
   function is run on each keypress and release.
 
@@ -47,34 +46,42 @@ the `cmake -B build -S .` command):
 
 ## Configuration
 
-Read [`lib.cpp`](src/lib.cpp) for supported configuration keys.
-
-TODO: markdown table
-
-> [!NOTE]
->
-> Shadows in app icons do not look right. Functionality is not affected;
-> PRs with fixes are welcome.
-
-### Example
-
 ```hyprlang
 plugin {
     wm {
-        app_0 {
-            class = kitty
-            command = kitty
-        }
-        app_1 {
-            class = org.kde.dolphin
-            command = dolphin
-        }
+        # Quick access apps
+        # Format:
+        #     app_<n> = <class>, <command>
+        # where 0 <= n < NUM_QUICK_ACCESS_APPS
+        # [default: app_<n> = "", "", for all n]
+        # Example:
+        app_0 = kitty, kitty
+        app_1 = org.gnome.SystemMonitor, gnome-system-monitor
+        
+        # This is the default config of the app switcher
         app_switcher {
             container {
+                background_color = rgba(ffffff11)
+                border_color = rgba(80808011)
                 padding = 20
+                radius = 35
+                border_width = 1
             }
             selection {
+                background_color = rgba(00000011)
                 padding = 10
+                radius = 30
+            }
+            label {
+                font_family = Inter
+                font_color = rgba(ffffff)
+                font_size = 0
+                separation = 0
+            }
+            icons {
+                size = 120
+                separation = 40
+                theme = ""
             }
         }
     }
@@ -87,3 +94,8 @@ bind = SUPER,       1, wm:focusorexec, 1
 bind = SUPER SHIFT, 1, wm:moveorexec,  1
 bind = SUPER CTRL,  1, wm:exec,        1
 ```
+
+> [!NOTE]
+>
+> Shadows in app icons do not look right. Functionality is not affected;
+> PRs with fixes are welcome.

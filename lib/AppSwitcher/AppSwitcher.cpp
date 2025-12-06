@@ -66,7 +66,7 @@ void AppSwitcher::show(
 	    g_pCompositor->m_wlEventLoop,
 	    [](void *data) {
 		    auto *self = static_cast<AppSwitcher *>(data);
-			if (auto res = self->get_container_box(); res.has_value())
+		    if (auto res = self->get_container_box(); res.has_value())
 			    g_pHyprRenderer->damageRegion(res.value());
 		    return 0;
 	    },
@@ -80,11 +80,6 @@ void AppSwitcher::show(
 	this->app_stuff_map        = app_stuff_map;
 
 	load_icon_textures();
-
-	// TODO: Do we need this?
-	// Damage the monitor to trigger rendering
-	// if (auto monitor = g_pCompositor->m_lastMonitor.lock())
-	// 	g_pHyprRenderer->damageMonitor(monitor);
 }
 
 void AppSwitcher::hide()
@@ -286,7 +281,7 @@ void AppSwitcher::load_icon_textures() const
 				auto &icon      = app_info_ptr->icon;
 				auto  texture   = makeShared<CTexture>();
 				texture->m_size = {
-					static_cast<double>(icon.width), static_cast<double>(icon.height)
+				    static_cast<double>(icon.width), static_cast<double>(icon.height)
 				};
 
 				glGenTextures(1, &texture->m_texID);
@@ -304,15 +299,15 @@ void AppSwitcher::load_icon_textures() const
 				case ImageFormat::RGBA: format = GL_RGBA; break;
 				}
 				glTexImage2D(
-					GL_TEXTURE_2D,
-					0,
-					format,
-					icon.width,
-					icon.height,
-					0,
-					format,
-					GL_UNSIGNED_BYTE,
-					icon.buffer.get()
+				    GL_TEXTURE_2D,
+				    0,
+				    format,
+				    icon.width,
+				    icon.height,
+				    0,
+				    format,
+				    GL_UNSIGNED_BYTE,
+				    icon.buffer.get()
 				);
 				if (icon.format == ImageFormat::BGRA) {
 					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_BLUE);

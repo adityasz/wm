@@ -60,7 +60,7 @@ public:
 	bool is_active() const;
 
 private:
-	void load_icon_textures() const;
+	void                                load_icon_textures() const;
 	std::expected<CBox, std::monostate> get_container_box() const;
 	void                                render();
 	void                                hide();

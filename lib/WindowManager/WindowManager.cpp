@@ -17,9 +17,6 @@ std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> WindowManager::quick_access_ap
 
 WindowManager::WindowManager()
 {
-	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
-		quick_access_apps[i].command = get_config<char>(std::format("app_{}:command", i));
-
 	reload_config();
 
 	app_id_to_stuff_map.reserve(10);
@@ -35,10 +32,53 @@ WindowManager::WindowManager()
 
 void WindowManager::reload_config()
 {
+	static const std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> app_config_strings =
+	    [] {
+		    std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> temp;
+		    for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
+			    temp[i] = get_config<char>(std::format("app_{}", i));
+		    return temp;
+	    }();
+
+	auto invalid_config = [] { log(ERR, "invalid config"); };
+
 	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++) {
-		quick_access_apps[i].app_id = *get_config<char>(std::format("app_{}:class", i));
-		if (auto &[app_id, command] = quick_access_apps[i]; !(app_id.empty() && strlen(*command)))
-			log(INFO, "app {}: class={}, command={}", i, app_id, *command);
+		const char *config_str = *app_config_strings[i];
+		if (*config_str == '\0')
+			continue;
+
+		if (*config_str == ',')
+			return invalid_config();
+		int comma_idx = 1;
+		while (config_str[comma_idx] != ',') {
+			if (config_str[comma_idx] == '\0')
+				return invalid_config();
+			comma_idx++;
+		}
+
+		int app_id_start = 0;
+		int app_id_end   = comma_idx - 1;
+		while (std::isspace(static_cast<unsigned char>(config_str[app_id_start]))) {
+			app_id_start++;
+			if (app_id_start == comma_idx)
+				return invalid_config();
+		}
+		while (std::isspace(static_cast<unsigned char>(config_str[app_id_end])))
+			app_id_end--;
+		quick_access_apps[i].app_id =
+		    std::string(config_str + app_id_start, app_id_end - app_id_start + 1);
+
+		const char *command = *app_config_strings[i] + comma_idx + 1;
+		if (*command == '\0')
+			return invalid_config();
+		while (std::isspace(static_cast<unsigned char>(*command))) {
+			command++;
+			if (*command == '\0')
+				return invalid_config();
+		}
+		quick_access_apps[i].command = command;
+
+		log(INFO, "app {}: class={}, command={}", i, quick_access_apps[i].app_id, command);
 	}
 	app_switcher.reload_config();
 	app_info_loader.reload_config();
@@ -111,11 +151,11 @@ SDispatchResult WindowManager::exec(int n)
 {
 	LOG_TRACE("{}", n);
 
-	if (!strlen(*quick_access_apps[n].command))
+	if (!strlen(quick_access_apps[n].command))
 		return oob(n);
 
-	log(INFO, "executing {}", *quick_access_apps[n].command);
-	CKeybindManager::spawn(*quick_access_apps[n].command);
+	log(INFO, "executing {}", quick_access_apps[n].command);
+	CKeybindManager::spawn(quick_access_apps[n].command);
 	return {};
 }
 
@@ -272,9 +312,9 @@ SDispatchResult WindowManager::dump_debug_info()
 	        | std::views::transform([](auto &window) { return as_str(window); }));
 	log(LOG, "WM:");
 	app_switcher.show(app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
-    // this is terrible since it causes the focused app to be raised but
-    // ::hide() is a private method (and rightfully so) and this is a debugging
-    // method so this should not be a big deal
+	// this is terrible since it causes the focused app to be raised but
+	// ::hide() is a private method (and rightfully so) and this is a debugging
+	// method so this should not be a big deal
 	app_switcher.focus_selected();
 	for (const auto &app_id : app_id_focus_history) {
 		auto &[windows, app_info] = app_id_to_stuff_map.at(app_id);

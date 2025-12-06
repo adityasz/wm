@@ -88,10 +88,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 	using Hyprlang::STRING;
 	using Hyprlang::FLOAT;
 
-	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++) {
-		add_config(std::format("app_{}:class", i), STRING{""});
-		add_config(std::format("app_{}:command", i), STRING{""});
-	}
+	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
+		add_config(std::format("app_{}", i), STRING{""});
 	add_config("app_switcher:container:background_color", INT{0x11'ff'ff'ff});
 	add_config("app_switcher:container:border_color", INT{0x11'80'80'80});
 	add_config("app_switcher:container:padding", INT{20});

@@ -1,6 +1,6 @@
-add_library(WM SHARED)
-target_sources(WM PRIVATE lib.cpp)
-target_link_libraries(WM
+add_library(wm SHARED)
+target_sources(wm PRIVATE lib.cpp)
+target_link_libraries(wm
     PRIVATE
         PkgConfig::HyprDeps
         Support
@@ -8,3 +8,4 @@ target_link_libraries(WM
         WindowSwitcher
         WindowManager
 )
+set_target_properties(wm PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})

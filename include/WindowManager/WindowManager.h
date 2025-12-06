@@ -8,9 +8,9 @@ struct QuickAccessApp {
 	///
 	/// Since it is small and frequently accessed, it makes sense to take
 	/// advantage of std::string's SSO.
-	std::string             app_id;
+	std::string app_id;
 	/// The command used to launch the app.
-	const Hyprlang::STRING *command;
+	const char *command;
 };
 
 class WindowManager {
