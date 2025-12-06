@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-#define private public // CKeybindManager::{switchToWindow, bringActiveToTop, spawn}, ...
+#define private public // CKeybindManager::spawn
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
@@ -25,7 +25,3 @@
 #include <hyprlang.hpp>
 #include <hyprutils/math/Vector2D.hpp>
 #undef private
-
-void focus_and_raise_window(
-    PHLWINDOW window, SP<CWLSurfaceResource> pSurface = nullptr, bool preserveFocusHistory = false
-);

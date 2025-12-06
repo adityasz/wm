@@ -10,10 +10,7 @@ static void log(eLogLevel level, std::format_string<Args...> fmt_string, Args &&
 }
 #else
 template <typename... Args>
-static void
-log([[maybe_unused]] eLogLevel                   level,
-    [[maybe_unused]] std::format_string<Args...> fmt,
-    [[maybe_unused]] Args &&...fmt_args)
+static void log(eLogLevel, std::format_string<Args...>, Args &&...)
 {}
 #endif
 
@@ -33,9 +30,7 @@ template <typename T, typename... Types>
 concept IsOneOf = (std::same_as<T, Types> || ...);
 } // namespace detail
 
-// FIXME: This is just a quick and dirty workaround. Hyprland defines
-// std::formatter for PHLWINDOW. It is a bit too verbose for my usage.
-// Revisit after I know enough C++ to somehow override that.
+// Hyprland's std::formatter for PHLWINDOW is a bit too verbose for my usage.
 template <typename T>
     requires requires(T t) {
 	    { *t };

@@ -1,9 +1,9 @@
 #include <expected>
 #include <variant>
 
-#include "AppSwitcher.h"
-#include "Globals.h"
-#include "Logging.h"
+#include "AppSwitcher/AppSwitcher.h"
+#include "Support/Logging.h"
+#include "Support/Utils.h"
 
 using namespace std::chrono_literals;
 
@@ -58,15 +58,15 @@ void AppSwitcher::show(
     std::unordered_map<std::string, AppStuff> *app_stuff_map
 )
 {
-	active = true;
-
 	first_tab_press = std::chrono::system_clock::now();
+
+	active = true;
 
 	timer = wl_event_loop_add_timer(
 	    g_pCompositor->m_wlEventLoop,
 	    [](void *data) {
 		    auto *self = static_cast<AppSwitcher *>(data);
-		    if (auto res = self->get_container_box(); res.has_value())
+			if (auto res = self->get_container_box(); res.has_value())
 			    g_pHyprRenderer->damageRegion(res.value());
 		    return 0;
 	    },
@@ -79,9 +79,12 @@ void AppSwitcher::show(
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
 
+	load_icon_textures();
+
+	// TODO: Do we need this?
 	// Damage the monitor to trigger rendering
-	if (auto monitor = g_pCompositor->m_lastMonitor.lock())
-		g_pHyprRenderer->damageMonitor(monitor);
+	// if (auto monitor = g_pCompositor->m_lastMonitor.lock())
+	// 	g_pHyprRenderer->damageMonitor(monitor);
 }
 
 void AppSwitcher::hide()
@@ -268,4 +271,59 @@ void AppSwitcher::reload_config()
 	                        ->renderText("X", font_color, font_size, false, font_family.c_str())
 	                        ->m_size.y
 	                  : 0;
+}
+
+void AppSwitcher::load_icon_textures() const
+{
+	for (auto &app_stuff : *app_stuff_map | std::views::values) {
+		auto &[_, app_info] = app_stuff;
+		if (auto future = std::get_if<std::future<AppInfo *>>(&app_info)) {
+			if (future->wait_for(0s) != std::future_status::ready)
+				continue;
+			if (auto app_info_ptr = future->get(); !app_info_ptr->icon.buffer) {
+				app_info = AppRenderData{app_info_ptr->name, {}};
+			} else {
+				auto &icon      = app_info_ptr->icon;
+				auto  texture   = makeShared<CTexture>();
+				texture->m_size = {
+					static_cast<double>(icon.width), static_cast<double>(icon.height)
+				};
+
+				glGenTextures(1, &texture->m_texID);
+				glBindTexture(GL_TEXTURE_2D, texture->m_texID);
+
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+				auto format = icon.format != ImageFormat::RGB ? GL_RGBA : GL_RGB;
+				switch (icon.format) {
+				case ImageFormat::RGB:  format = GL_RGB; break;
+				case ImageFormat::BGRA: // swizzling done later
+				case ImageFormat::RGBA: format = GL_RGBA; break;
+				}
+				glTexImage2D(
+					GL_TEXTURE_2D,
+					0,
+					format,
+					icon.width,
+					icon.height,
+					0,
+					format,
+					GL_UNSIGNED_BYTE,
+					icon.buffer.get()
+				);
+				if (icon.format == ImageFormat::BGRA) {
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
+				}
+				glBindTexture(GL_TEXTURE_2D, 0);
+
+				app_info = AppRenderData{app_info_ptr->name, texture};
+			}
+		}
+	}
 }

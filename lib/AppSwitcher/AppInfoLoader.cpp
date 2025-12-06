@@ -7,10 +7,10 @@
 #include <glibmm/keyfile.h>
 #include <gtkmm.h>
 
-#include "AppInfoLoader.h"
-#include "Globals.h"
-#include "Image.h"
-#include "Logging.h"
+#include "AppSwitcher/AppInfoLoader.h"
+#include "AppSwitcher/Image.h"
+#include "Support/Logging.h"
+#include "Support/Utils.h"
 
 const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
 const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};

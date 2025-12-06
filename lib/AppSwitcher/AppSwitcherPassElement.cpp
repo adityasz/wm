@@ -1,9 +1,7 @@
-#include "AppSwitcherPassElement.h"
-#include "AppSwitcher.h"
+#include "AppSwitcher/AppSwitcherPassElement.h"
+#include "AppSwitcher/AppSwitcher.h"
 
 // Lifted from https://github.com/yz778/hyprview.
-//
-// I may be using these incorrectly (haven't looked at Hyprland's rendering pipeline)
 
 AppSwitcherPassElement::AppSwitcherPassElement(AppSwitcher *instance) : instance(instance) {}
 

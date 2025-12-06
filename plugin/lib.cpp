@@ -1,5 +1,5 @@
-#include "Globals.h"
-#include "WindowManager.h"
+#include "Support/Utils.h"
+#include "WindowManager/WindowManager.h"
 
 #define WLR_USE_UNSTABLE
 
@@ -117,7 +117,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 	register_dispatchers();
 
 	return {
-	    "wm", "window manager, app switcher, window switcher, and a couple of dispatchers", "Aditya Singh", "0.1"
+	    "wm",
+	    "window manager, app switcher, window switcher, and a couple of dispatchers",
+	    "Aditya Singh",
+	    "0.1"
 	};
 }
 

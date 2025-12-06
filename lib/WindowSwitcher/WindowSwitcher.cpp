@@ -1,8 +1,9 @@
 #include <algorithm>
 #include <ranges>
 
-#include "Logging.h"
-#include "WindowSwitcher.h"
+#include "Support/Logging.h"
+#include "Support/Utils.h"
+#include "WindowSwitcher/WindowSwitcher.h"
 
 WindowSwitcher::WindowSwitcher() : idx(0), active(false) {}
 

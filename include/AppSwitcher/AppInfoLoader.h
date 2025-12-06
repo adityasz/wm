@@ -6,14 +6,13 @@
 #include <unordered_map>
 
 #include <glib.h>
+extern "C" {
+#include "nkutils-xdg-theme.h"
+}
 
 #include "Image.h"
 
 inline static constexpr auto MAX_ENTRIES = 50;
-
-extern "C" {
-#include "nkutils-xdg-theme.h"
-}
 
 struct AppInfo {
 	std::string name;

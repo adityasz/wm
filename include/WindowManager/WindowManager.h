@@ -1,7 +1,7 @@
 #pragma once
 
-#include "AppSwitcher.h"
-#include "WindowSwitcher.h"
+#include "AppSwitcher/AppSwitcher.h"
+#include "WindowSwitcher/WindowSwitcher.h"
 
 struct QuickAccessApp {
 	/// The Wayland application ID of the app's windows.
@@ -46,7 +46,6 @@ public:
 	SDispatchResult dump_debug_info();
 
 private:
-	void load_icon_textures();
 	void handle_window_switching(bool backwards);
 	void handle_app_switching(bool backwards);
 };

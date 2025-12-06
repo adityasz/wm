@@ -1,8 +1,11 @@
-#include "WindowManager.h"
-#include "AppInfoLoader.h"
-#include "AppSwitcherPassElement.h"
-#include "Globals.h"
-#include "Logging.h"
+#include <cstring>
+
+#include <gch/small_vector.hpp>
+
+#include "AppSwitcher/AppSwitcherPassElement.h"
+#include "Support/Logging.h"
+#include "Support/Utils.h"
+#include "WindowManager/WindowManager.h"
 
 using namespace std::chrono_literals;
 
@@ -224,70 +227,13 @@ bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
 	}
 }
 
-void WindowManager::load_icon_textures()
-{
-	for (auto &app_stuff : app_id_to_stuff_map | std::views::values) {
-		auto &[_, app_info] = app_stuff;
-		if (auto future = std::get_if<std::future<AppInfo *>>(&app_info)) {
-			if (future->wait_for(0s) != std::future_status::ready)
-				continue;
-			if (auto app_info_ptr = future->get(); !app_info_ptr->icon.buffer) {
-				app_info = AppRenderData{app_info_ptr->name, {}};
-			} else {
-				auto &icon      = app_info_ptr->icon;
-				auto  texture   = makeShared<CTexture>();
-				texture->m_size = {
-				    static_cast<double>(icon.width), static_cast<double>(icon.height)
-				};
-
-				glGenTextures(1, &texture->m_texID);
-				glBindTexture(GL_TEXTURE_2D, texture->m_texID);
-
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-				auto format = icon.format != ImageFormat::RGB ? GL_RGBA : GL_RGB;
-				switch (icon.format) {
-				case ImageFormat::RGB:  format = GL_RGB; break;
-				case ImageFormat::BGRA: // swizzling done later
-				case ImageFormat::RGBA: format = GL_RGBA; break;
-				}
-				glTexImage2D(
-				    GL_TEXTURE_2D,
-				    0,
-				    format,
-				    icon.width,
-				    icon.height,
-				    0,
-				    format,
-				    GL_UNSIGNED_BYTE,
-				    icon.buffer.get()
-				);
-				if (icon.format == ImageFormat::BGRA) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
-				}
-				glBindTexture(GL_TEXTURE_2D, 0);
-
-				app_info = AppRenderData{app_info_ptr->name, texture};
-			}
-		}
-	}
-}
-
 void WindowManager::handle_app_switching(bool backwards)
 {
 	LOG_TRACE("backwards = {}", backwards);
 	if (window_switcher.is_active())
 		window_switcher.abort();
-	if (!app_switcher.is_active()) {
-		load_icon_textures();
+	if (!app_switcher.is_active())
 		app_switcher.show(app_id_focus_history, &app_id_to_stuff_map);
-	}
 	app_switcher.move(backwards);
 }
 
@@ -325,10 +271,14 @@ SDispatchResult WindowManager::dump_debug_info()
 	    g_pCompositor->m_windowFocusHistory
 	        | std::views::transform([](auto &window) { return as_str(window); }));
 	log(LOG, "WM:");
-	load_icon_textures();
+	app_switcher.show(app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
+    // this is terrible since it causes the focused app to be raised but
+    // ::hide() is a private method (and rightfully so) and this is a debugging
+    // method so this should not be a big deal
+	app_switcher.focus_selected();
 	for (const auto &app_id : app_id_focus_history) {
 		auto &[windows, app_info] = app_id_to_stuff_map.at(app_id);
-		std::string app_name = "<future>";
+		std::string app_name      = "<future>";
 		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
 			app_name = app_render_data->app_name;
 		log(LOG, "{:<4}{}: {}", "", app_id, app_name);

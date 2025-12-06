@@ -6,7 +6,7 @@
 #include <spng.h>
 #include <turbojpeg.h>
 
-#include "Image.h"
+#include "AppSwitcher/Image.h"
 
 static std::vector<uint8_t> read_file(std::string_view path)
 {
