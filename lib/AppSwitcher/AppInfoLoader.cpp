@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <future>
 #include <mutex>
+#include <pthread.h>
 #include <thread>
 
 #include <glibmm/keyfile.h>
@@ -18,9 +19,10 @@ const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
 AppInfoLoader::AppInfoLoader() :
     theme_context(nk_xdg_theme_context_new(icon_fallbacks, sound_fallbacks)),
     worker(&AppInfoLoader::worker_thread, this),
+    max_entries(20),
     shutdown_flag(false)
 {
-	cache.reserve(MAX_ENTRIES);
+	cache.reserve(max_entries);
 	app_dirs = Glib::get_system_data_dirs();
 	app_dirs.insert(app_dirs.begin(), Glib::get_user_data_dir());
 	for (auto &data_dir : app_dirs)
@@ -30,7 +32,7 @@ AppInfoLoader::AppInfoLoader() :
 
 void AppInfoLoader::reload_config()
 {
-	icon_size = **get_config<Hyprlang::INT>("app_switcher:icons:size");
+	icon_size = static_cast<uint16_t>(**get_config<Hyprlang::INT>("app_switcher:icons:size"));
 
 	themes.reserve(2); // people would usually have only one theme
 	for (auto theme :
@@ -254,16 +256,19 @@ AppInfoLoader::get_app_info(const std::string &app_id, const std::string &initia
 	return fut;
 }
 
-/// TODO: MAX_ENTRIES should be dynamic.
 void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
 {
-	std::lock_guard lk(mtx);
-	if (cache.size() <= MAX_ENTRIES)
+	max_entries = std::max(20uz, app_ids_to_keep.size() + app_ids_to_keep.size() / 4);
+	// race conditions do not matter since this is heuristics based and the size
+	// can be off by at most one (only one background thread)
+	if (cache.size() <= max_entries)
 		return;
+
+	std::lock_guard lk(mtx);
 
 	size_t size_before_pruning = cache.size();
 	for (auto it = cache.begin(); it != cache.end();) {
-		if (cache.size() <= MAX_ENTRIES)
+		if (cache.size() == std::max(20uz, app_ids_to_keep.size()))
 			break;
 		if (!std::ranges::contains(app_ids_to_keep, it->first))
 			it = cache.erase(it);
@@ -271,7 +276,7 @@ void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
 			++it;
 	}
 
-	if (cache.size() < size_before_pruning && cache.size() <= MAX_ENTRIES) {
+	if (cache.size() < size_before_pruning && cache.size() <= max_entries) {
 		std::unordered_map new_map(
 		    std::make_move_iterator(cache.begin()), std::make_move_iterator(cache.end())
 		);

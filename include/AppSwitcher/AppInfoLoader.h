@@ -12,8 +12,6 @@ extern "C" {
 
 #include "Image.h"
 
-inline static constexpr auto MAX_ENTRIES = 50;
-
 struct AppInfo {
 	std::string name;
 	Image       icon;
@@ -35,8 +33,9 @@ class AppInfoLoader {
 	std::queue<Task>                                          task_queue;
 	std::mutex                                                mtx;
 	std::condition_variable                                   cv;
-	std::jthread                                              worker;
-	int                                                       icon_size;
+	std::thread                                               worker;
+	uint16_t                                                  icon_size;
+	uint16_t                                                  max_entries;
 	bool                                                      shutdown_flag;
 
 	static const gchar *icon_fallbacks[];
