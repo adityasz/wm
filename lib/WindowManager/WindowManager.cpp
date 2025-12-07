@@ -31,6 +31,11 @@ WindowManager::WindowManager()
 
 void WindowManager::reload_config()
 {
+	if (app_switcher.is_active())
+		app_switcher.abort();
+	if (window_switcher.is_active())
+		window_switcher.abort();
+
 	static const std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> app_config_strings =
 	    [] {
 		    std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> temp{};
@@ -98,6 +103,9 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 		if (auto &windows = it->second.windows; !std::ranges::contains(windows, window))
 			windows.push_back(window);
 	}
+#ifdef JETBRAINS_SEARCH_EVERYWHERE_WORKAROUND
+
+#endif
 }
 
 void WindowManager::on_touch_window(const PHLWINDOW &window)

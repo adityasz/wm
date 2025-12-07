@@ -53,6 +53,7 @@ public:
 	    std::unordered_map<std::string, AppStuff> *app_stuff_map
 	);
 	void                      move(bool backwards);
+	void                      abort();
 	[[nodiscard]] std::string get_current_selection() const;
 	void                      focus_selected();
 	void                      on_close_app(std::string_view closing_app_id);

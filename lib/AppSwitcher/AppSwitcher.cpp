@@ -108,6 +108,8 @@ void AppSwitcher::hide()
 	visible = false;
 }
 
+void AppSwitcher::abort() { hide(); }
+
 void AppSwitcher::on_close_app(std::string_view closing_app_id)
 {
 	if (!active)
