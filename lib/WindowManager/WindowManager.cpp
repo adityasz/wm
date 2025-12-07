@@ -1,5 +1,3 @@
-#include <cstring>
-
 #include <gch/small_vector.hpp>
 
 #include "AppSwitcher/AppSwitcherPassElement.h"
@@ -9,14 +7,15 @@
 
 using namespace std::chrono_literals;
 
-std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> WindowManager::quick_access_apps = [] {
-	std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> arr;
-	arr.fill({"", nullptr});
-	return arr;
-}();
 
 WindowManager::WindowManager()
 {
+	quick_access_apps = [] {
+		std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> arr;
+		arr.fill({"", ""});
+		return arr;
+	}();
+
 	reload_config();
 
 	app_id_to_stuff_map.reserve(10);
@@ -34,7 +33,7 @@ void WindowManager::reload_config()
 {
 	static const std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> app_config_strings =
 	    [] {
-		    std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> temp;
+		    std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> temp{};
 		    for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
 			    temp[i] = get_config<char>(std::format("app_{}", i));
 		    return temp;
@@ -131,9 +130,14 @@ void WindowManager::on_touch_window(const PHLWINDOW &window)
 void WindowManager::on_close_window(const PHLWINDOW &window)
 {
 	LOG_TRACE("{}", as_str(window));
-	auto &windows = app_id_to_stuff_map[window->m_class].windows;
+	auto it = app_id_to_stuff_map.find(window->m_class);
+	if (it == app_id_to_stuff_map.end())
+		return;
+	auto &windows = it->second.windows;
+	window_switcher.on_close_window(window);
 	gch::erase(windows, window);
 	if (windows.empty()) {
+		app_switcher.on_close_app(window->m_class);
 		app_id_to_stuff_map.erase(window->m_class);
 		std::erase(app_id_focus_history, window->m_class);
 		app_info_loader.prune(app_id_focus_history);
@@ -273,7 +277,7 @@ void WindowManager::handle_app_switching(bool backwards)
 	if (window_switcher.is_active())
 		window_switcher.abort();
 	if (!app_switcher.is_active())
-		app_switcher.show(app_id_focus_history, &app_id_to_stuff_map);
+		app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map);
 	app_switcher.move(backwards);
 }
 
@@ -289,7 +293,7 @@ void WindowManager::handle_window_switching(bool backwards)
 		auto it = app_id_to_stuff_map.find(last_window->m_class);
 		if (it == app_id_to_stuff_map.end())
 			return;
-		window_switcher.seed(it->second.windows);
+		window_switcher.seed(&it->second.windows);
 	}
 	window_switcher.move(backwards);
 }
@@ -311,7 +315,7 @@ SDispatchResult WindowManager::dump_debug_info()
 	    g_pCompositor->m_windowFocusHistory
 	        | std::views::transform([](auto &window) { return as_str(window); }));
 	log(LOG, "WM:");
-	app_switcher.show(app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
+	app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
 	// this is terrible since it causes the focused app to be raised but
 	// ::hide() is a private method (and rightfully so) and this is a debugging
 	// method so this should not be a big deal
@@ -326,4 +330,11 @@ SDispatchResult WindowManager::dump_debug_info()
 			log(LOG, "{:<8}{}", "", as_str(window));
 	}
 	return {};
+}
+
+std::span<PHLWINDOWREF> WindowManager::get_app_switcher_current()
+{
+	return app_switcher.is_active()
+	           ? app_id_to_stuff_map.at(app_switcher.get_current_selection()).windows
+	           : std::span<PHLWINDOWREF>{};
 }

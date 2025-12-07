@@ -3,6 +3,8 @@
 #include <span>
 #include <vector>
 
+#include <gch/small_vector.hpp>
+
 #include "Hyprland.h"
 
 /// We can have a window switcher that displays previews (above/below the app
@@ -11,20 +13,22 @@
 /// the current setup to be good enough.
 class WindowSwitcher {
 	// WindowManager::on_touch_window does not modify this when active = true
-	std::span<PHLWINDOWREF> app_windows;
+	gch::small_vector<PHLWINDOWREF, 3> *app_windows;
 	// All windows of the app are raised when window switching starts.
 	// On abort (end), windows (other than focused window) are reset to their
-	// original z-order.
-	std::vector<PHLWINDOW>  initial_windows;
-	int                     idx;
-	bool                    active;
+	// original z-order. Using vector because of small vector here because
+	// this is only created once and can go to the heap.
+	std::vector<PHLWINDOW>              initial_windows;
+	int                                 idx;
+	bool                                active;
 
 public:
 	WindowSwitcher();
 
-	void               seed(std::span<PHLWINDOWREF> app_windows);
+	void               seed(gch::small_vector<PHLWINDOWREF, 3> *app_windows);
 	void               move(bool backwards);
 	void               focus_selected();
 	void               abort();
+	void               on_close_window(const PHLWINDOW &closing_window);
 	[[nodiscard]] bool is_active() const;
 };

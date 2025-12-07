@@ -7,7 +7,11 @@
 
 using namespace std::chrono_literals;
 
-AppSwitcher::AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr)
+AppSwitcher::AppSwitcher() :
+    app_id_focus_history(nullptr),
+    app_stuff_map(nullptr),
+    timer(nullptr),
+    idx(0)
 {
 	active = false;
 	reload_config();
@@ -15,46 +19,8 @@ AppSwitcher::AppSwitcher() : app_stuff_map(nullptr), idx(0), render_hook(nullptr
 
 bool AppSwitcher::is_active() const { return active; }
 
-void AppSwitcher::move(bool backwards)
-{
-	LOG_TRACE("backwards = {}, idx = {}", backwards, idx);
-
-	if (app_id_focus_history.empty())
-		return;
-
-	if (backwards) {
-		if (idx)
-			idx--;
-		else
-			idx = app_id_focus_history.size() - 1;
-	} else {
-		idx++;
-		if (idx == app_id_focus_history.size())
-			idx = 0;
-	}
-
-	if (auto monitor = g_pCompositor->m_lastMonitor.lock())
-		g_pHyprRenderer->damageMonitor(monitor);
-}
-
-void AppSwitcher::focus_selected()
-{
-	LOG_TRACE("{}", "");
-	hide();
-	if (app_id_focus_history.empty())
-		return;
-	auto &windows    = app_stuff_map->at(app_id_focus_history[idx]).windows;
-	auto  window_ref = windows.front();
-	if (auto window = window_ref.lock()) {
-		focus_and_raise_window(window);
-	} else {
-		gch::erase(windows, window_ref);
-		log(INFO, "    {} became null", as_str(window_ref));
-	}
-}
-
 void AppSwitcher::show(
-    std::span<std::string>                     app_id_focus_history,
+    std::vector<std::string>                  *app_id_focus_history,
     std::unordered_map<std::string, AppStuff> *app_stuff_map
 )
 {
@@ -74,12 +40,61 @@ void AppSwitcher::show(
 	);
 	wl_event_source_timer_update(timer, 100);
 
-	log(INFO, "show: {}", app_id_focus_history);
+	log(INFO, "show: {}", *app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
 
 	load_icon_textures();
+}
+
+void AppSwitcher::move(bool backwards)
+{
+	LOG_TRACE("backwards = {}, idx = {}", backwards, idx);
+
+	if (app_id_focus_history->empty())
+		return;
+
+	if (backwards) {
+		if (idx)
+			idx--;
+		else
+			idx = static_cast<int>(app_id_focus_history->size()) - 1;
+	} else {
+		idx++;
+		if (idx == static_cast<int>(app_id_focus_history->size()))
+			idx = 0;
+	}
+
+	assert(
+	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
+	);
+
+	if (auto monitor = g_pCompositor->m_lastMonitor.lock())
+		g_pHyprRenderer->damageMonitor(monitor);
+}
+
+std::string AppSwitcher::get_current_selection() const { return (*app_id_focus_history)[idx]; }
+
+void AppSwitcher::focus_selected()
+{
+	LOG_TRACE("{}", "");
+
+	assert(
+	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
+	);
+
+	hide();
+	if (app_id_focus_history->empty())
+		return;
+	auto &windows    = app_stuff_map->at((*app_id_focus_history)[idx]).windows;
+	auto  window_ref = windows.front();
+	if (auto window = window_ref.lock()) {
+		focus_and_raise_window(window);
+	} else {
+		gch::erase(windows, window_ref);
+		log(INFO, "    {} became null", as_str(window_ref));
+	}
 }
 
 void AppSwitcher::hide()
@@ -93,14 +108,29 @@ void AppSwitcher::hide()
 	visible = false;
 }
 
+void AppSwitcher::on_close_app(std::string_view closing_app_id)
+{
+	if (!active)
+		return;
+
+	if (app_id_focus_history->empty() == 1)
+		return hide();
+
+	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
+		if (app_id == closing_app_id) {
+			if (idx != 0 && idx >= i)
+				idx--;
+			return;
+		}
+	}
+}
+
 std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 {
-	size_t num_icons = app_id_focus_history.size();
-	double total_width =
-	    container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
-	double total_height =
-	    container_padding + icon_size + label_sep + font_height + container_padding;
-	auto monitor = g_pCompositor->m_lastMonitor.lock();
+	size_t num_icons  = app_id_focus_history->size();
+	auto total_width  = container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
+	auto total_height = 2 * container_padding + icon_size + label_sep + font_height;
+	auto monitor      = g_pCompositor->m_lastMonitor.lock();
 	if (!monitor) {
 		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
 		return std::unexpected{std::monostate{}};
@@ -121,14 +151,14 @@ void AppSwitcher::render()
 		return;
 	}
 
-	if (app_id_focus_history.empty()) {
-		log(INFO, "render: no apps open");
+	if (app_id_focus_history->empty())
 		return;
-	}
 
-	if (!visible && std::chrono::system_clock::now() - first_tab_press < 100ms)
-		return;
-	visible = true;
+	if (!visible) {
+		if (std::chrono::system_clock::now() - first_tab_press < 100ms)
+			return;
+		visible = true;
+	}
 
 	CBox container_box;
 	if (auto res = get_container_box(); res.has_value())
@@ -161,23 +191,18 @@ void AppSwitcher::render()
 	double icon_x   = container_box.x + container_padding;
 	// TODO: use multiple rows when too many icons
 	double icon_y   = container_box.y + container_padding;
-	CBox   icon_box = {
-        icon_x, icon_y, static_cast<double>(icon_size), static_cast<double>(icon_size)
+	CBox   icon_box = {icon_x, icon_y, icon_size, icon_size};
+	CBox   text_box = {
+        icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
     };
-	CBox text_box = {
-	    icon_x + icon_size / 2.0,
-	    icon_y + icon_size + label_sep,
-	    static_cast<double>(icon_size),
-	    static_cast<double>(font_height)
-	};
-	for (const auto &[i, app_id] : app_id_focus_history | std::views::enumerate) {
+	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		// Draw selection highlight if this is the selected app
-		if (static_cast<size_t>(i) == idx) {
+		if (i == idx) {
 			CBox selection_box = {
 			    icon_x - selection_padding,
 			    icon_y - selection_padding,
-			    static_cast<double>(icon_size) + 2 * selection_padding,
-			    static_cast<double>(icon_size + label_sep + font_height) + 2 * selection_padding
+			    icon_size + 2 * selection_padding,
+			    icon_size + label_sep + 2 * selection_padding + font_height
 			};
 
 			CHyprOpenGLImpl::SRectRenderData selection_data;
@@ -186,7 +211,7 @@ void AppSwitcher::render()
 			g_pHyprOpenGL->renderRect(selection_box, selection_background_color, selection_data);
 		}
 
-		auto &[_, app_stuff] = *app_stuff_map->find(app_id);
+		auto &[_, app_stuff] = *app_stuff_map->find(app_id); // must exist
 		auto data_ptr        = std::get_if<AppRenderData>(&app_stuff.app_info);
 		if (!data_ptr) {
 			log(INFO, "AppSwitcher: data not available for class={}", app_id);
@@ -243,22 +268,27 @@ void AppSwitcher::reload_config()
 	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:container:background_color"));
 	container_border_color =
 	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:container:border_color"));
-	container_padding      = **get_config<Hyprlang::INT>("app_switcher:container:padding");
-	container_radius       = **get_config<Hyprlang::INT>("app_switcher:container:radius");
-	container_border_width = **get_config<Hyprlang::INT>("app_switcher:container:border_width");
+	container_padding =
+	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:padding"));
+	container_radius =
+	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:radius"));
+	container_border_width =
+	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:border_width"));
 
 	selection_background_color =
 	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:selection:background_color"));
-	selection_padding = **get_config<Hyprlang::INT>("app_switcher:selection:padding");
-	selection_radius  = **get_config<Hyprlang::INT>("app_switcher:selection:radius");
+	selection_padding =
+	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:selection:padding"));
+	selection_radius =
+	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:selection:radius"));
 
 	font_family = *get_config<char>("app_switcher:label:font_family");
 	font_color  = CHyprColor(**get_config<Hyprlang::INT>("app_switcher:label:font_color"));
-	font_size   = **get_config<Hyprlang::INT>("app_switcher:label:font_size");
-	label_sep   = **get_config<Hyprlang::INT>("app_switcher:label:separation");
+	font_size   = static_cast<int>(**get_config<Hyprlang::INT>("app_switcher:label:font_size"));
+	label_sep = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:label:separation"));
 
-	icon_size = **get_config<Hyprlang::INT>("app_switcher:icons:size");
-	icon_sep  = **get_config<Hyprlang::INT>("app_switcher:icons:separation");
+	icon_size = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:icons:size"));
+	icon_sep  = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:icons:separation"));
 
 	// TODO: this is ugly, figure out the right way to do this
 	font_height = font_size

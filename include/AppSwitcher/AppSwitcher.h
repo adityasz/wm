@@ -17,13 +17,9 @@ struct AppStuff {
 	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
 };
 
-/// Once we have a better window switcher, we can have a common base class or
-/// something
 class AppSwitcher {
-	std::span<std::string>                             app_id_focus_history;
+	std::vector<std::string>                          *app_id_focus_history;
 	std::unordered_map<std::string, AppStuff>         *app_stuff_map;
-	size_t                                             idx;
-	SP<HOOK_CALLBACK_FN>                               render_hook;
 	std::chrono::time_point<std::chrono::system_clock> first_tab_press;
 	wl_event_source                                   *timer;
 
@@ -32,17 +28,18 @@ class AppSwitcher {
 	CHyprColor  selection_background_color;
 	CHyprColor  font_color;
 	std::string font_family;
+	double      font_height;
+	double      label_sep;
+	double      icon_size;
+	double      icon_sep;
+	double      container_border_width;
+	double      container_padding;
+	double      selection_padding;
+	double      container_radius;
 	int         font_size;
-	int         label_sep;
-	int         icon_size;
-	int         icon_sep;
-	int         container_border_width;
-	int         container_padding;
-	int         selection_padding;
-	int         container_radius;
 	int         selection_radius;
-	float       font_height;
 
+	int  idx;
 	bool visible;
 	bool active;
 
@@ -52,18 +49,20 @@ public:
 	void reload_config();
 
 	void show(
-	    std::span<std::string>                     app_id_focus_history,
+	    std::vector<std::string>                  *app_id_focus_history,
 	    std::unordered_map<std::string, AppStuff> *app_stuff_map
 	);
-	void move(bool backwards);
-	void focus_selected();
-	bool is_active() const;
+	void                      move(bool backwards);
+	[[nodiscard]] std::string get_current_selection() const;
+	void                      focus_selected();
+	void                      on_close_app(std::string_view closing_app_id);
+	[[nodiscard]] bool        is_active() const;
 
 private:
-	void                                load_icon_textures() const;
-	std::expected<CBox, std::monostate> get_container_box() const;
-	void                                render();
-	void                                hide();
+	void                                              load_icon_textures() const;
+	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
+	void                                              render();
+	void                                              hide();
 
 	friend class AppSwitcherPassElement;
 };

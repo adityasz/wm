@@ -1,7 +1,7 @@
 #include "Hyprland.h"
 
 void focus_and_raise_window(
-    PHLWINDOW window, SP<CWLSurfaceResource> pSurface, bool preserveFocusHistory
+    const PHLWINDOW &window, const SP<CWLSurfaceResource> &pSurface, bool preserveFocusHistory
 )
 {
 	if (window->m_workspace->m_hasFullscreenWindow) {

@@ -2,7 +2,6 @@
 #include <filesystem>
 #include <future>
 #include <mutex>
-#include <pthread.h>
 #include <thread>
 
 #include <glibmm/keyfile.h>
@@ -212,7 +211,7 @@ void AppInfoLoader::worker_thread()
 		{
 			std::unique_lock lk(mtx);
 			cv.wait(lk, [this] { return shutdown_flag || !task_queue.empty(); });
-			if (shutdown_flag && task_queue.empty())
+			if (shutdown_flag)
 				break;
 			task = std::move(task_queue.front());
 			task_queue.pop();

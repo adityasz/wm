@@ -37,8 +37,9 @@ add_wm_library(AppSwitcher
     Image.cpp
 
     LINK_LIBS
-        turbojpeg
-        Support
+        PRIVATE
+            turbojpeg
+            Support
         PUBLIC
             PkgConfig::HyprDeps
             nkutils-icons

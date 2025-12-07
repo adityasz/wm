@@ -3,7 +3,9 @@
 #include "Globals.h"
 
 void focus_and_raise_window(
-    PHLWINDOW window, SP<CWLSurfaceResource> pSurface = nullptr, bool preserveFocusHistory = false
+    const PHLWINDOW              &window,
+    const SP<CWLSurfaceResource> &pSurface             = nullptr,
+    bool                          preserveFocusHistory = false
 );
 
 template <typename T>

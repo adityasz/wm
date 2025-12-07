@@ -14,13 +14,12 @@ struct QuickAccessApp {
 };
 
 class WindowManager {
-	std::vector<std::string>                  app_id_focus_history; // mru order
-	std::unordered_map<std::string, AppStuff> app_id_to_stuff_map;
-	WindowSwitcher                            window_switcher;
-	AppSwitcher                               app_switcher;
-	AppInfoLoader                             app_info_loader;
-
-	static std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> quick_access_apps;
+	std::vector<std::string>                          app_id_focus_history;
+	std::unordered_map<std::string, AppStuff>         app_id_to_stuff_map;
+	WindowSwitcher                                    window_switcher;
+	AppSwitcher                                       app_switcher;
+	AppInfoLoader                                     app_info_loader;
+	std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> quick_access_apps;
 
 public:
 	WindowManager();
@@ -36,14 +35,16 @@ public:
 	void render_app_switcher();
 
 	/// Launch (a new window of) the `n`-th quick access app.
-	static SDispatchResult exec(int n);
+	SDispatchResult exec(int n);
 	/// Focus the last used window of the `n`-th quick access app or launch it.
-	SDispatchResult        focus_or_exec(int n);
+	SDispatchResult focus_or_exec(int n);
 	/// Focus the last used window of the `n`-th quick access app after moving
 	/// it to the current workspace if needed, or launch it.
-	SDispatchResult        move_or_exec(int n);
+	SDispatchResult move_or_exec(int n);
 
 	SDispatchResult dump_debug_info();
+
+	[[nodiscard]] std::span<PHLWINDOWREF> get_app_switcher_current();
 
 private:
 	void handle_window_switching(bool backwards);

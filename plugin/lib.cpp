@@ -65,6 +65,35 @@ void register_dispatchers()
 	}
 }
 
+namespace hook {
+inline CFunctionHook *close_active_window_hook = nullptr;
+
+typedef SDispatchResult (*orig_close_active_window)(void *, std::string);
+
+// ReSharper disable once CppPassValueParameterByConstReference
+SDispatchResult close_active_window(void *thisptr, std::string data)
+{
+	if (auto windows = window_manager->get_app_switcher_current(); !windows.empty()) {
+		// TODO: If I just close them all in a for loop, for some reason, close
+		// events are not emitted. So let's not do anything stupid until I find
+		// time to read the relevant parts of Hyprland's codebase.
+		return {.success = false, .error = "not implemented"};
+	}
+	return (reinterpret_cast<orig_close_active_window>(close_active_window_hook->m_original))(
+	    thisptr, data
+	);
+}
+} // namespace hook
+
+void register_hooks()
+{
+	static const auto METHODS      = HyprlandAPI::findFunctionsByName(PHANDLE, "closeActive");
+	hook::close_active_window_hook = HyprlandAPI::createFunctionHook(
+	    PHANDLE, METHODS[0].address, reinterpret_cast<void *>(&hook::close_active_window)
+	);
+	hook::close_active_window_hook->hook();
+}
+
 APICALL EXPORT std::string PLUGIN_API_VERSION() { return HYPRLAND_API_VERSION; }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
@@ -113,6 +142,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 	register_callbacks();
 
 	register_dispatchers();
+
+	register_hooks();
 
 	return {
 	    "wm",
