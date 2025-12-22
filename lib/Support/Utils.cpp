@@ -14,4 +14,5 @@ void focus_and_raise_window(
 	if (!window->m_groupData.pNextWindow.expired())
 		window->setGroupCurrent(window);
 	g_pCompositor->changeWindowZOrder(window, true);
+	g_pInputManager->simulateMouseMovement();
 }
