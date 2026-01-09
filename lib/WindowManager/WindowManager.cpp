@@ -191,12 +191,6 @@ SDispatchResult WindowManager::focus_or_exec(int n)
 		return {.success = false, .error = error};
 	}
 	log(INFO, "focusing {}", as_str(window));
-	if (auto last_monitor = g_pCompositor->m_lastMonitor.lock();
-	    last_monitor
-	    && last_monitor->m_activeSpecialWorkspace
-	    && window->m_workspace != last_monitor->m_activeSpecialWorkspace) {
-		last_monitor->setSpecialWorkspace(nullptr);
-	}
 	focus_and_raise_window(window);
 	return {};
 }
