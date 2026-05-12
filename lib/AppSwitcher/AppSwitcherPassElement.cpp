@@ -1,5 +1,10 @@
-#include "AppSwitcher/AppSwitcherPassElement.h"
-#include "AppSwitcher/AppSwitcher.h"
+module;
+
+#include "Hyprland.h"
+
+module wm.AppSwitcher;
+
+using namespace wm;
 
 // Lifted from https://github.com/yz778/hyprview.
 

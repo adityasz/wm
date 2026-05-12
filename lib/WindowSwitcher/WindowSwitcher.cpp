@@ -1,10 +1,18 @@
-#include <algorithm>
-#include <cassert>
-#include <ranges>
+module;
 
-#include "Support/Logging.h"
-#include "Support/Utils.h"
-#include "WindowSwitcher/WindowSwitcher.h"
+#include "llvm/ADT/SmallVector.h"
+
+#include "Hyprland.h"
+#include "Logging.h"
+
+#include <cassert>
+
+module wm.WindowSwitcher;
+
+import std;
+import wm.Support;
+
+using namespace wm;
 
 WindowSwitcher::WindowSwitcher() : app_windows(nullptr), idx(0), active(false) {}
 

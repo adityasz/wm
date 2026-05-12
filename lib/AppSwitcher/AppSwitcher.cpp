@@ -1,10 +1,16 @@
-#include <expected>
-#include <variant>
+module;
 
-#include "AppSwitcher/AppSwitcher.h"
-#include "Support/Logging.h"
-#include "Support/Utils.h"
+#include "Hyprland.h"
+#include "Logging.h"
 
+#include <cassert>
+
+module wm.AppSwitcher;
+
+import std;
+import wm.Support;
+
+using namespace wm;
 using namespace std::chrono_literals;
 
 AppSwitcher::AppSwitcher() :

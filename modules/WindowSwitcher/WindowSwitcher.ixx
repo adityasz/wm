@@ -1,12 +1,14 @@
-#pragma once
-
-#include <span>
-#include <vector>
+module;
 
 #include "llvm/ADT/SmallVector.h"
 
 #include "Hyprland.h"
 
+export module wm.WindowSwitcher;
+
+import std;
+
+export namespace wm {
 /// We can have a window switcher that displays previews (above/below the app
 /// switcher if it is open). But that would require taking a snapshot of windows
 /// and that's a ton of code that I do not want to write, especially when I find
@@ -32,3 +34,4 @@ public:
 	void               on_close_window(const PHLWINDOW &closing_window);
 	[[nodiscard]] bool is_active() const;
 };
+} // namespace wm

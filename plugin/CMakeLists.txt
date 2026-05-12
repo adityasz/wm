@@ -1,8 +1,15 @@
 add_library(wm SHARED)
-target_sources(wm PRIVATE lib.cpp)
+target_sources(wm
+    PRIVATE
+        lib.cpp
+    PRIVATE
+        FILE_SET wm_module
+        TYPE CXX_MODULES
+        BASE_DIRS "${CMAKE_SOURCE_DIR}/modules"
+        FILES "${CMAKE_SOURCE_DIR}/modules/wm.ixx"
+)
 target_link_libraries(wm
     PRIVATE
-        PkgConfig::HyprDeps
         Support
         AppSwitcher
         WindowSwitcher

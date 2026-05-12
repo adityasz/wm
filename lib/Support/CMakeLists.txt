@@ -1,6 +1,13 @@
 add_wm_library(Support
-    Utils.cpp
+    PUBLIC
+        Support.ixx
+        Logging.ixx
+        Utils.ixx
+    PRIVATE
+        Utils.cpp
+)
 
-    LINK_LIBS
+target_link_libraries(Support
+    PUBLIC
         PkgConfig::HyprDeps
 )

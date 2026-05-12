@@ -1,17 +1,15 @@
-#pragma once
+module;
 
-#include <future>
-#include <queue>
-#include <thread>
-#include <unordered_map>
+#include "nkutils.h"
 
-#include <glib.h>
-extern "C" {
-#include "nkutils-xdg-theme.h"
-}
+#include <cstdint>
 
-#include "Image.h"
+export module wm.AppSwitcher.AppInfoLoader;
 
+import std;
+import wm.AppSwitcher.Image;
+
+export namespace wm {
 struct AppInfo {
 	std::string name;
 	Image       icon;
@@ -60,3 +58,4 @@ private:
 	std::unique_ptr<AppInfo>
 	load_app_info(const std::string &app_id, const std::string &initial_app_id) const;
 };
+} // namespace wm

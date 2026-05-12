@@ -1,23 +1,18 @@
-#pragma once
+module;
 
 #include "Hyprland.h"
 
+export module wm.Support.Logging;
+
+namespace wm {
 #ifdef DEBUG_LOGS
-template <typename... Args>
-static void log(eLogLevel level, std::format_string<Args...> fmt_string, Args &&...fmt_args)
+export template <typename... Args>
+void log(eLogLevel level, std::format_string<Args...> fmt_string, Args &&...fmt_args)
 { Debug::log(level, "[wm] {}", std::format(fmt_string, std::forward<Args>(fmt_args)...)); }
 #else
-template <typename... Args>
-static void log(eLogLevel, std::format_string<Args...>, Args &&...)
+export template <typename... Args>
+void log(eLogLevel, std::format_string<Args...>, Args &&...)
 {}
-#endif
-
-#ifndef NDEBUG
-#define LOG_TRACE(fmt, ...) log(LOG, "{}: " fmt, __PRETTY_FUNCTION__, __VA_ARGS__)
-#else
-#define LOG_TRACE(fmt, ...)                                                                       \
-	do {                                                                                          \
-	} while (0)
 #endif
 
 namespace detail {
@@ -29,7 +24,7 @@ concept IsOneOf = (std::same_as<T, Types> || ...);
 } // namespace detail
 
 // Hyprland's std::formatter for PHLWINDOW is a bit too verbose for my usage.
-template <typename T>
+export template <typename T>
     requires requires(T t) {
 	    { *t };
 	    { !t } -> std::convertible_to<bool>;
@@ -50,3 +45,4 @@ std::string as_str(const T &thing)
 
 	return std::format("{}:0x{:x}", desc, reinterpret_cast<uintptr_t>(std::to_address(thing)));
 }
+} // namespace wm

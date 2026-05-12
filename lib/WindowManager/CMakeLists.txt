@@ -1,7 +1,12 @@
 add_wm_library(WindowManager
-    WindowManager.cpp
+    PUBLIC
+        WindowManager.ixx
+    PRIVATE
+        WindowManager.cpp
+)
 
-    LINK_LIBS
+target_link_libraries(WindowManager
+    PUBLIC
         llvm::SmallVector
         PkgConfig::HyprDeps
         AppSwitcher

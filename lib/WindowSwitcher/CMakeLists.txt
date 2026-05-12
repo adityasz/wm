@@ -1,7 +1,12 @@
 add_wm_library(WindowSwitcher
-    WindowSwitcher.cpp
+    PUBLIC
+        WindowSwitcher.ixx
+    PRIVATE
+        WindowSwitcher.cpp
+)
 
-    LINK_LIBS
+target_link_libraries(WindowSwitcher
+    PUBLIC
         llvm::SmallVector
         PkgConfig::HyprDeps
         Support

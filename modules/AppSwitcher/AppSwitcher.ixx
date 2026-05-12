@@ -1,14 +1,18 @@
-#pragma once
+module;
 
 #include "llvm/ADT/SmallVector.h"
 
 #include "Hyprland.h"
 
-#include "AppSwitcher/AppInfoLoader.h"
-#include "Support/Utils.h"
+export module wm.AppSwitcher;
+
+import std;
+export import wm.AppSwitcher.AppInfoLoader;
+export import wm.AppSwitcher.Image;
 
 using Hyprlang::SVector2D;
 
+export namespace wm {
 struct AppRenderData {
 	std::string  app_name;
 	SP<CTexture> icon_texture;
@@ -69,3 +73,22 @@ private:
 
 	friend class AppSwitcherPassElement;
 };
+
+// Credit: https://github.com/yz778/hyprview
+class AppSwitcherPassElement final : public IPassElement {
+public:
+	explicit AppSwitcherPassElement(AppSwitcher *instance);
+	~AppSwitcherPassElement() override = default;
+
+	void                draw(const CRegion &damage) override;
+	bool                needsLiveBlur() override;
+	bool                needsPrecomputeBlur() override;
+	std::optional<CBox> boundingBox() override;
+	CRegion             opaqueRegion() override;
+
+	const char *passName() override { return "AppSwitcherPassElement"; }
+
+private:
+	AppSwitcher *instance;
+};
+} // namespace wm

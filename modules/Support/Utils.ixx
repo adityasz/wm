@@ -1,11 +1,14 @@
-#pragma once
+module;
 
 #include "Globals.h"
+#include "Hyprland.h"
 
+export module wm.Support.Utils;
+
+export namespace wm {
 void focus_and_raise_window(
-    const PHLWINDOW              &window,
-    const SP<CWLSurfaceResource> &pSurface             = nullptr,
-    bool                          preserveFocusHistory = false
+    const PHLWINDOW &window, const SP<CWLSurfaceResource> &pSurface = nullptr,
+    bool preserveFocusHistory = false
 );
 
 template <typename T>
@@ -19,3 +22,4 @@ const T *const *get_config(std::string_view key)
 	    HyprlandAPI::getConfigValue(PHANDLE, std::format("plugin:wm:{}", key))->getDataStaticPtr()
 	);
 }
+} // namespace wm

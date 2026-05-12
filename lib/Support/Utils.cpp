@@ -1,5 +1,10 @@
+module;
+
 #include "Hyprland.h"
 
+module wm.Support.Utils;
+
+namespace wm {
 void focus_and_raise_window(
     const PHLWINDOW &window, const SP<CWLSurfaceResource> &pSurface, bool preserveFocusHistory
 )
@@ -22,3 +27,4 @@ void focus_and_raise_window(
 	g_pCompositor->changeWindowZOrder(window, true);
 	g_pInputManager->simulateMouseMovement();
 }
+} // namespace wm

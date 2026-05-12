@@ -1,12 +1,14 @@
-#include <cmath>
-#include <fstream>
-#include <vector>
+module;
 
 #include <librsvg/rsvg.h>
 #include <spng.h>
 #include <turbojpeg.h>
 
-#include "AppSwitcher/Image.h"
+module wm.AppSwitcher.Image;
+
+import std;
+
+using namespace wm;
 
 static std::vector<uint8_t> read_file(std::string_view path)
 {

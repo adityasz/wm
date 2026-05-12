@@ -1,8 +1,14 @@
-#pragma once
+module;
 
-#include "AppSwitcher/AppSwitcher.h"
-#include "WindowSwitcher/WindowSwitcher.h"
+#include "Hyprland.h"
 
+export module wm.WindowManager;
+
+import std;
+export import wm.AppSwitcher;
+export import wm.WindowSwitcher;
+
+export namespace wm {
 struct QuickAccessApp {
 	/// The Wayland application ID of the app's windows.
 	///
@@ -50,3 +56,4 @@ private:
 	void handle_window_switching(bool backwards);
 	void handle_app_switching(bool backwards);
 };
+} // namespace wm

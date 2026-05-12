@@ -1,5 +1,9 @@
-#include "Support/Utils.h"
-#include "WindowManager/WindowManager.h"
+#include "Globals.h"
+
+import std;
+import wm;
+
+using namespace wm;
 
 #define WLR_USE_UNSTABLE
 
@@ -102,7 +106,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
-	if (strcmp(compositor_hash, client_hash)) {
+	if (std::strcmp(compositor_hash, client_hash)) {
 		auto error = std::format(
 		    "[wm] Failure in initialization: Version mismatch (headers ver = {} != {} = "
 		    "running ver)",

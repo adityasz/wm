@@ -1,12 +1,17 @@
+module;
+
 #include "llvm/ADT/SmallVector.h"
 
-#include "AppSwitcher/AppSwitcherPassElement.h"
-#include "Support/Logging.h"
-#include "Support/Utils.h"
-#include "WindowManager/WindowManager.h"
+#include "Hyprland.h"
+#include "Logging.h"
 
+module wm.WindowManager;
+
+import std;
+import wm.Support;
+
+using namespace wm;
 using namespace std::chrono_literals;
-
 
 WindowManager::WindowManager()
 {

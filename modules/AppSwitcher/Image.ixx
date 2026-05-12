@@ -1,9 +1,11 @@
-#pragma once
+export module wm.AppSwitcher.Image;
 
-#include <cstdint>
-#include <memory>
-#include <string>
+import std;
 
+using std::uint8_t;
+using std::uint32_t;
+
+export namespace wm {
 enum class ImageFormat : uint8_t {
 	RGB,
 	RGBA,
@@ -18,3 +20,4 @@ struct Image {
 };
 
 Image read_image(std::string_view path, int size);
+} // namespace wm

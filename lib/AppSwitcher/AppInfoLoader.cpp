@@ -1,16 +1,23 @@
-#include <condition_variable>
-#include <filesystem>
-#include <future>
-#include <mutex>
-#include <thread>
+module;
+
+#include <emmintrin.h>
+#include <immintrin.h>
+#include <pmmintrin.h>
+#include <smmintrin.h>
+#include <tmmintrin.h>
 
 #include <glibmm/keyfile.h>
 #include <gtkmm.h>
 
-#include "AppSwitcher/AppInfoLoader.h"
-#include "AppSwitcher/Image.h"
-#include "Support/Logging.h"
-#include "Support/Utils.h"
+#include "Hyprland.h"
+#include "nkutils.h"
+
+module wm.AppSwitcher.AppInfoLoader;
+
+import std;
+import wm.Support;
+
+using namespace wm;
 
 const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
 const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
