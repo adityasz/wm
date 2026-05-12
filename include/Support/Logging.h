@@ -5,9 +5,7 @@
 #ifdef DEBUG_LOGS
 template <typename... Args>
 static void log(eLogLevel level, std::format_string<Args...> fmt_string, Args &&...fmt_args)
-{
-	Debug::log(level, "[wm] {}", std::format(fmt_string, std::forward<Args>(fmt_args)...));
-}
+{ Debug::log(level, "[wm] {}", std::format(fmt_string, std::forward<Args>(fmt_args)...)); }
 #else
 template <typename... Args>
 static void log(eLogLevel, std::format_string<Args...>, Args &&...)

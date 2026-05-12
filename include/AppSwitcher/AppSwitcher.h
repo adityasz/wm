@@ -1,9 +1,11 @@
 #pragma once
 
-#include <gch/small_vector.hpp>
+#include "llvm/ADT/SmallVector.h"
 
-#include "AppInfoLoader.h"
 #include "Hyprland.h"
+
+#include "AppSwitcher/AppInfoLoader.h"
+#include "Support/Utils.h"
 
 using Hyprlang::SVector2D;
 
@@ -13,7 +15,7 @@ struct AppRenderData {
 };
 
 struct AppStuff {
-	gch::small_vector<PHLWINDOWREF, 3>                  windows;
+	llvm::SmallVector<PHLWINDOWREF>                     windows;
 	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
 };
 

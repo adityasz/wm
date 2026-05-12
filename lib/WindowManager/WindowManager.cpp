@@ -1,4 +1,4 @@
-#include <gch/small_vector.hpp>
+#include "llvm/ADT/SmallVector.h"
 
 #include "AppSwitcher/AppSwitcherPassElement.h"
 #include "Support/Logging.h"
@@ -143,7 +143,7 @@ void WindowManager::on_close_window(const PHLWINDOW &window)
 		return;
 	auto &windows = it->second.windows;
 	window_switcher.on_close_window(window);
-	gch::erase(windows, window);
+	std::ranges::remove(windows, window);
 	if (windows.empty()) {
 		app_switcher.on_close_app(window->m_class);
 		app_id_to_stuff_map.erase(window->m_class);
@@ -185,7 +185,7 @@ SDispatchResult WindowManager::focus_or_exec(int n)
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
-		gch::erase(it->second.windows, window_ref);
+		std::ranges::remove(it->second.windows, window_ref);
 		auto error = std::format("{} became null", as_str(window_ref));
 		log(INFO, "{}", error);
 		return {.success = false, .error = error};
@@ -209,7 +209,7 @@ SDispatchResult WindowManager::move_or_exec(int n)
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
-		gch::erase(it->second.windows, window_ref);
+		std::ranges::remove(it->second.windows, window_ref);
 		auto error = std::format("{} became null", as_str(window_ref));
 		log(INFO, "{}", error);
 		return {.success = false, .error = error};

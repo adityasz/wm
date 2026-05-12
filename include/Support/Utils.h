@@ -10,9 +10,7 @@ void focus_and_raise_window(
 
 template <typename T>
 void add_config(std::string_view key, T value)
-{
-	HyprlandAPI::addConfigValue(PHANDLE, std::format("plugin:wm:{}", key), value);
-}
+{ HyprlandAPI::addConfigValue(PHANDLE, std::format("plugin:wm:{}", key), value); }
 
 template <typename T>
 const T *const *get_config(std::string_view key)

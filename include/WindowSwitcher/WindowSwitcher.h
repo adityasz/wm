@@ -3,7 +3,7 @@
 #include <span>
 #include <vector>
 
-#include <gch/small_vector.hpp>
+#include "llvm/ADT/SmallVector.h"
 
 #include "Hyprland.h"
 
@@ -13,19 +13,19 @@
 /// the current setup to be good enough.
 class WindowSwitcher {
 	// WindowManager::on_touch_window does not modify this when active = true
-	gch::small_vector<PHLWINDOWREF, 3> *app_windows;
+	llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows;
 	// All windows of the app are raised when window switching starts.
 	// On abort (end), windows (other than focused window) are reset to their
 	// original z-order. Using vector because of small vector here because
 	// this is only created once and can go to the heap.
-	std::vector<PHLWINDOW>              initial_windows;
-	int                                 idx;
-	bool                                active;
+	std::vector<PHLWINDOW>               initial_windows;
+	int                                  idx;
+	bool                                 active;
 
 public:
 	WindowSwitcher();
 
-	void               seed(gch::small_vector<PHLWINDOWREF, 3> *app_windows);
+	void               seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows);
 	void               move(bool backwards);
 	void               focus_selected();
 	void               abort();

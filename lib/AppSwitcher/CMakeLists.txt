@@ -44,5 +44,5 @@ add_wm_library(AppSwitcher
             PkgConfig::HyprDeps
             nkutils-icons
             PkgConfig::AppInfoDeps
-            gch::small_vector
+            llvm::SmallVector
 )

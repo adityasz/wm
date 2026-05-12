@@ -8,8 +8,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g3")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -ffast-math -flto=auto")
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-add_subdirectory(external/small_vector)
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(HyprDeps REQUIRED IMPORTED_TARGET
     hyprland

@@ -8,7 +8,7 @@
 
 WindowSwitcher::WindowSwitcher() : app_windows(nullptr), idx(0), active(false) {}
 
-void WindowSwitcher::seed(gch::small_vector<PHLWINDOWREF, 3> *app_windows)
+void WindowSwitcher::seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 {
 	LOG_TRACE("{}", *app_windows | std::views::transform([](auto &window) {
 		          return as_str(window);

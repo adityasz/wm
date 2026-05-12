@@ -92,7 +92,7 @@ void AppSwitcher::focus_selected()
 	if (auto window = window_ref.lock()) {
 		focus_and_raise_window(window);
 	} else {
-		gch::erase(windows, window_ref);
+		std::ranges::remove(windows, window_ref);
 		log(INFO, "    {} became null", as_str(window_ref));
 	}
 }
@@ -195,8 +195,8 @@ void AppSwitcher::render()
 	double icon_y   = container_box.y + container_padding;
 	CBox   icon_box = {icon_x, icon_y, icon_size, icon_size};
 	CBox   text_box = {
-        icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
-    };
+	    icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
+	};
 	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		// Draw selection highlight if this is the selected app
 		if (i == idx) {

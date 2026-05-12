@@ -2,7 +2,7 @@ add_wm_library(WindowManager
     WindowManager.cpp
 
     LINK_LIBS
-        gch::small_vector
+        llvm::SmallVector
         PkgConfig::HyprDeps
         AppSwitcher
         Support
