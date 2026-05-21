@@ -2,17 +2,27 @@ module;
 
 #include "nkutils.h"
 
-#include <cstdint>
-
 export module wm.AppSwitcher.AppInfoLoader;
 
 import std;
+import hyprland.config;
+import hyprutils.memory;
 import wm.AppSwitcher.Image;
+
+using std::uint16_t;
+using Hyprutils::Memory::CSharedPointer;
+using Config::Values::CStringValue;
+using Config::Values::CFloatValue;
 
 export namespace wm {
 struct AppInfo {
 	std::string name;
 	Image       icon;
+};
+
+struct AppInfoLoaderConfig {
+	CSharedPointer<CFloatValue>  icon_size;
+	CSharedPointer<CStringValue> theme;
 };
 
 /// Has one thread that does IO crap so that the main thread is not blocked.
@@ -40,11 +50,11 @@ class AppInfoLoader {
 	static const gchar *sound_fallbacks[];
 
 public:
-	AppInfoLoader();
+	explicit AppInfoLoader(const AppInfoLoaderConfig &config);
 
 	~AppInfoLoader();
 
-	void reload_config();
+	void reset_config(const AppInfoLoaderConfig &config);
 
 	std::future<AppInfo *>
 	get_app_info(const std::string &app_id, const std::string &initial_app_id);

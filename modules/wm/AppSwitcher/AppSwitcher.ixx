@@ -1,26 +1,57 @@
 module;
 
-#include "llvm/ADT/SmallVector.h"
-
-#include "Hyprland.h"
+#include <wayland-server-core.h>
 
 export module wm.AppSwitcher;
 
 import std;
+import llvm.ADT;
+import hyprland.desktop;
+import hyprland.render;
+import hyprland.helpers;
+import hyprland.config;
+import hyprutils.math;
+import hyprutils.memory;
+
 export import wm.AppSwitcher.AppInfoLoader;
 export import wm.AppSwitcher.Image;
 
-using Hyprlang::SVector2D;
+using Config::Values::CColorValue;
+using Config::Values::CStringValue;
+using Config::Values::CIntValue;
+using Config::Values::CFloatValue;
+using Hyprutils::Math::CBox;
+using Hyprutils::Math::CRegion;
+using Hyprutils::Memory::CSharedPointer;
+using Hyprutils::Memory::CUniquePointer;
 
 export namespace wm {
+
 struct AppRenderData {
-	std::string  app_name;
-	SP<CTexture> icon_texture;
+	std::string          app_name;
+	CSharedPointer<Render::ITexture> icon_texture;
 };
 
 struct AppStuff {
 	llvm::SmallVector<PHLWINDOWREF>                     windows;
 	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
+};
+
+struct AppSwitcherConfig {
+	CSharedPointer<CColorValue>  container_background_color;
+	CSharedPointer<CColorValue>  container_border_color;
+	CSharedPointer<CFloatValue>  container_border_width;
+	CSharedPointer<CFloatValue>  container_padding;
+	CSharedPointer<CIntValue>    container_radius;
+	CSharedPointer<CColorValue>  selection_background_color;
+	CSharedPointer<CFloatValue>  selection_padding;
+	CSharedPointer<CIntValue>    selection_radius;
+	CSharedPointer<CStringValue> font_family;
+	CSharedPointer<CColorValue>  font_color;
+	CSharedPointer<CIntValue>    font_size;
+	CSharedPointer<CFloatValue>  label_sep;
+	CSharedPointer<CFloatValue>  icon_size;
+	CSharedPointer<CFloatValue>  icon_sep;
 };
 
 class AppSwitcher {
@@ -41,18 +72,18 @@ class AppSwitcher {
 	double      container_border_width;
 	double      container_padding;
 	double      selection_padding;
-	double      container_radius;
-	int         font_size;
+	int         container_radius;
 	int         selection_radius;
+	int         font_size;
 
 	int  idx;
 	bool visible;
 	bool active;
 
 public:
-	AppSwitcher();
+	explicit AppSwitcher(const AppSwitcherConfig &config);
 
-	void reload_config();
+	void reset_config(const AppSwitcherConfig &config);
 
 	void show(
 	    std::vector<std::string>                  *app_id_focus_history,
@@ -80,15 +111,17 @@ public:
 	explicit AppSwitcherPassElement(AppSwitcher *instance);
 	~AppSwitcherPassElement() override = default;
 
-	void                draw(const CRegion &damage) override;
-	bool                needsLiveBlur() override;
-	bool                needsPrecomputeBlur() override;
-	std::optional<CBox> boundingBox() override;
-	CRegion             opaqueRegion() override;
+	std::vector<CUniquePointer<IPassElement>> draw() override;
+	bool                          needsLiveBlur() override;
+	bool                          needsPrecomputeBlur() override;
+	std::optional<CBox>           boundingBox() override;
+	CRegion                       opaqueRegion() override;
 
-	const char *passName() override { return "AppSwitcherPassElement"; }
+	const char      *passName() override { return "AppSwitcherPassElement"; }
+	ePassElementType type() override { return EK_CUSTOM; }
 
 private:
 	AppSwitcher *instance;
 };
+
 } // namespace wm

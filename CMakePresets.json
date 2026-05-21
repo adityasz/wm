@@ -1,0 +1,43 @@
+{
+	"version": 10,
+	"cmakeMinimumRequired": {
+		"major": 4,
+		"minor": 3,
+		"patch": 2
+	},
+	"configurePresets": [
+		{
+			"name": "base",
+			"hidden": true,
+			"generator": "Ninja",
+			"cacheVariables": {
+				"CMAKE_LINKER_TYPE": "MOLD",
+				"CMAKE_COLOR_DIAGNOSTICS": "ON"
+			}
+		},
+		{
+			"name": "debug-build",
+			"inherits": "base",
+			"description": "Debug build",
+			"binaryDir": "${sourceDir}/build/debug",
+			"cacheVariables": {
+				"CMAKE_BUILD_TYPE": "Debug",
+				"SWITCHER_MOD": "KEY_LEFTALT"
+			}
+		},
+		{
+			"name": "release-build",
+			"inherits": "base",
+			"description": "Release build",
+			"binaryDir": "${sourceDir}/build/release",
+			"cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+		},
+		{
+			"name": "rel-with-deb-info-build",
+			"inherits": "base",
+			"description": "RelWithDebInfo build",
+			"binaryDir": "${sourceDir}/build/relwithdebinfo",
+			"cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
+		}
+	]
+}

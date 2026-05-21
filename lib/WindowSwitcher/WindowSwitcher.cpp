@@ -1,26 +1,26 @@
 module;
 
-#include "llvm/ADT/SmallVector.h"
-
-#include "Hyprland.h"
-#include "Logging.h"
-
 #include <cassert>
 
 module wm.WindowSwitcher;
 
 import std;
+import hyprland.globals;
+import hyprland.desktop;
+import hyprland.render;
 import wm.Support;
 
+using std::size_t;
 using namespace wm;
+using Log::INFO;
 
 WindowSwitcher::WindowSwitcher() : app_windows(nullptr), idx(0), active(false) {}
 
 void WindowSwitcher::seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 {
-	LOG_TRACE("{}", *app_windows | std::views::transform([](auto &window) {
-		          return as_str(window);
-	          }));
+	// LOG_TRACE("{}", *app_windows | std::views::transform([](auto &window) {
+	// 	          return as_str(window);
+	//           }));
 
 	idx    = 0;
 	active = true;
@@ -59,7 +59,7 @@ void WindowSwitcher::seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 
 void WindowSwitcher::move(bool backwards)
 {
-	LOG_TRACE("backwards={}", backwards);
+	// LOG_TRACE("backwards={}", backwards);
 
 	if (app_windows->empty())
 		return;
@@ -100,7 +100,7 @@ void WindowSwitcher::focus_selected()
 	if (auto window = (*app_windows)[idx].lock()) {
 		log(INFO, "    switching to {}", as_str(window));
 		focus_and_raise_window(window);
-		if (auto monitor = g_pCompositor->m_lastMonitor.lock())
+		if (auto monitor = Desktop::focusState()->monitor())
 			g_pHyprRenderer->damageMonitor(monitor);
 		// else not our concern
 		return;
@@ -115,7 +115,7 @@ void WindowSwitcher::abort()
 {
 	active                   = false;
 	g_pCompositor->m_windows = initial_windows;
-	if (auto monitor = g_pCompositor->m_lastMonitor.lock())
+	if (auto monitor = Desktop::focusState()->monitor())
 		g_pHyprRenderer->damageMonitor(monitor);
 	// else not our concern
 }

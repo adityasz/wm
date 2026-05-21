@@ -1,12 +1,8 @@
-module;
-
-#include "llvm/ADT/SmallVector.h"
-
-#include "Hyprland.h"
-
 export module wm.WindowSwitcher;
 
 import std;
+import llvm.ADT;
+import hyprland.desktop;
 
 export namespace wm {
 /// We can have a window switcher that displays previews (above/below the app

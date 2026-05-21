@@ -1,30 +1,33 @@
 module;
 
-#include "llvm/ADT/SmallVector.h"
-
-#include "Hyprland.h"
-#include "Logging.h"
+#include <linux/input-event-codes.h>
 
 module wm.WindowManager;
 
 import std;
+import hyprland.config;
+import hyprland.globals;
+import hyprland.render;
+import hyprutils.memory;
 import wm.Support;
+
+using Config::Actions::ActionResult;
+using Config::Actions::actionError;
+using Config::Actions::eActionErrorCode;
+using Config::Actions::eActionErrorLevel;
+using Hyprutils::Memory::makeUnique;
+using Log::INFO, Log::ERR, Log::TRACE;
 
 using namespace wm;
 using namespace std::chrono_literals;
 
-WindowManager::WindowManager()
+WindowManager::WindowManager(const WindowManagerConfig &config) :
+    app_switcher(config.app_switcher),
+    app_info_loader(config.app_info_loader),
+    config(config)
 {
-	quick_access_apps = [] {
-		std::array<QuickAccessApp, NUM_QUICK_ACCESS_APPS> arr;
-		arr.fill({"", ""});
-		return arr;
-	}();
-
-	reload_config();
-
-	app_id_to_stuff_map.reserve(10);
-	for (auto &window : g_pCompositor->m_windowFocusHistory) {
+	app_id_to_stuff_map.reserve(20);
+	for (auto &window : Desktop::History::windowTracker()->fullHistory() | std::views::reverse) {
 		if (!std::ranges::contains(app_id_focus_history, window->m_class)) {
 			app_id_focus_history.push_back(window->m_class);
 			app_id_to_stuff_map[window->m_class].app_info =
@@ -34,69 +37,21 @@ WindowManager::WindowManager()
 	}
 }
 
-void WindowManager::reload_config()
+void WindowManager::reset_config()
 {
 	if (app_switcher.is_active())
 		app_switcher.abort();
 	if (window_switcher.is_active())
 		window_switcher.abort();
 
-	static const std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> app_config_strings =
-	    [] {
-		    std::array<const Hyprlang::STRING *, NUM_QUICK_ACCESS_APPS> temp{};
-		    for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++)
-			    temp[i] = get_config<char>(std::format("app_{}", i));
-		    return temp;
-	    }();
-
-	auto invalid_config = [] { log(ERR, "invalid config"); };
-
-	for (int i = 0; i < NUM_QUICK_ACCESS_APPS; i++) {
-		const char *config_str = *app_config_strings[i];
-		if (*config_str == '\0')
-			continue;
-
-		if (*config_str == ',')
-			return invalid_config();
-		int comma_idx = 1;
-		while (config_str[comma_idx] != ',') {
-			if (config_str[comma_idx] == '\0')
-				return invalid_config();
-			comma_idx++;
-		}
-
-		int app_id_start = 0;
-		int app_id_end   = comma_idx - 1;
-		while (std::isspace(static_cast<unsigned char>(config_str[app_id_start]))) {
-			app_id_start++;
-			if (app_id_start == comma_idx)
-				return invalid_config();
-		}
-		while (std::isspace(static_cast<unsigned char>(config_str[app_id_end])))
-			app_id_end--;
-		quick_access_apps[i].app_id =
-		    std::string(config_str + app_id_start, app_id_end - app_id_start + 1);
-
-		const char *command = *app_config_strings[i] + comma_idx + 1;
-		if (*command == '\0')
-			return invalid_config();
-		while (std::isspace(static_cast<unsigned char>(*command))) {
-			command++;
-			if (*command == '\0')
-				return invalid_config();
-		}
-		quick_access_apps[i].command = command;
-
-		log(INFO, "app {}: class={}, command={}", i, quick_access_apps[i].app_id, command);
-	}
-	app_switcher.reload_config();
-	app_info_loader.reload_config();
+	app_switcher.reset_config(config.app_switcher);
+	app_info_loader.reset_config(config.app_info_loader);
 }
-
 
 void WindowManager::on_open_window(const PHLWINDOW &window)
 {
-	LOG_TRACE("{}", as_str(window));
+	if (!window)
+		return;
 	if (auto it = app_id_to_stuff_map.find(window->m_class); it == app_id_to_stuff_map.end()) {
 		auto [it_new, _] = app_id_to_stuff_map.try_emplace(window->m_class);
 		it_new->second.windows.push_back(window);
@@ -108,14 +63,12 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 		if (auto &windows = it->second.windows; !std::ranges::contains(windows, window))
 			windows.push_back(window);
 	}
-#ifdef JETBRAINS_SEARCH_EVERYWHERE_WORKAROUND
-
-#endif
 }
 
-void WindowManager::on_touch_window(const PHLWINDOW &window)
+void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason)
 {
-	LOG_TRACE("{}", as_str(window));
+	if (!window)
+		return;
 	if (window_switcher.is_active()) {
 		log(INFO, "window switcher is active, ignoring touch");
 		return;
@@ -142,7 +95,8 @@ void WindowManager::on_touch_window(const PHLWINDOW &window)
 
 void WindowManager::on_close_window(const PHLWINDOW &window)
 {
-	LOG_TRACE("{}", as_str(window));
+	if (!window)
+		return;
 	auto it = app_id_to_stuff_map.find(window->m_class);
 	if (it == app_id_to_stuff_map.end())
 		return;
@@ -157,73 +111,50 @@ void WindowManager::on_close_window(const PHLWINDOW &window)
 	}
 }
 
-static SDispatchResult oob(int n)
+ActionResult WindowManager::focus_or_exec(const char *app_id, const char *command)
 {
-	auto error = std::format("app_{} has an empty application ID or command", n);
-	log(ERR, "{}", error);
-	return {.success = false, .error = error};
-}
-
-SDispatchResult WindowManager::exec(int n)
-{
-	LOG_TRACE("{}", n);
-
-	if (!strlen(quick_access_apps[n].command))
-		return oob(n);
-
-	log(INFO, "executing {}", quick_access_apps[n].command);
-	CKeybindManager::spawn(quick_access_apps[n].command);
-	return {};
-}
-
-SDispatchResult WindowManager::focus_or_exec(int n)
-{
-	LOG_TRACE("{}", n);
-
-	if (quick_access_apps[n].app_id.empty())
-		return oob(n);
-
-	auto it = app_id_to_stuff_map.find(quick_access_apps[n].app_id);
-	if (it == app_id_to_stuff_map.end())
-		return exec(n);
+	auto it = app_id_to_stuff_map.find(app_id);
+	if (it == app_id_to_stuff_map.end()) {
+		if (!Config::Supplementary::executor()->spawn(command))
+			return actionError(std::format("Failed to spawn {}", command), eActionErrorLevel::INFO, eActionErrorCode::EXECUTION_FAILED);
+		return {};
+	}
 
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
 		std::ranges::remove(it->second.windows, window_ref);
-		auto error = std::format("{} became null", as_str(window_ref));
-		log(INFO, "{}", error);
-		return {.success = false, .error = error};
+		return actionError(
+		    "Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		);
 	}
 	log(INFO, "focusing {}", as_str(window));
 	focus_and_raise_window(window);
 	return {};
 }
 
-SDispatchResult WindowManager::move_or_exec(int n)
+ActionResult WindowManager::move_or_exec(const char *app_id, const char *command)
 {
-	LOG_TRACE("{}", n);
-
-	if (quick_access_apps[n].app_id.empty())
-		return oob(n);
-
-	auto it = app_id_to_stuff_map.find(quick_access_apps[n].app_id);
-	if (it == app_id_to_stuff_map.end())
-		return exec(n);
+	auto it = app_id_to_stuff_map.find(app_id);
+	if (it == app_id_to_stuff_map.end()) {
+		if (!Config::Supplementary::executor()->spawn(command))
+			return actionError(std::format("Failed to spawn {}", command), eActionErrorLevel::INFO, eActionErrorCode::EXECUTION_FAILED);
+		return {};
+	}
 
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
 		std::ranges::remove(it->second.windows, window_ref);
-		auto error = std::format("{} became null", as_str(window_ref));
-		log(INFO, "{}", error);
-		return {.success = false, .error = error};
+		return actionError(
+			"Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		);
 	}
-	auto monitor = g_pCompositor->m_lastMonitor.lock();
+	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
-		auto error = std::format("monitor {} became null", as_str(monitor));
-		log(INFO, "{}", error);
-		return {.success = false, .error = error};
+		return actionError(
+			"Monitor not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		);
 	}
 	if (auto active_workspace = monitor->m_activeWorkspace;
 	    window->m_workspace != active_workspace) {
@@ -241,12 +172,14 @@ SDispatchResult WindowManager::move_or_exec(int n)
 	return {};
 }
 
-bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
+void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)
 {
 	static bool mod_held   = false;
 	static bool shift_held = false;
 
-	switch (key) {
+	auto state = e.state;
+
+	switch (e.keycode) {
 	case SWITCHER_MOD:
 		mod_held = state;
 		if (!state) {
@@ -257,30 +190,37 @@ bool WindowManager::on_key_press(uint32_t key, wl_keyboard_key_state state)
 			else if (app_switcher.is_active())
 				app_switcher.focus_selected();
 		}
-		return false;
-	case KEY_LEFTSHIFT:
-	case KEY_RIGHTSHIFT: shift_held = state; return false;
+		info.cancelled = false;
+		break;
+	case KEY_LEFTSHIFT: [[fallthrough]];
+	case KEY_RIGHTSHIFT:
+		shift_held     = state;
+		info.cancelled = false;
+		break;
 	case KEY_TAB:
 		if (mod_held) {
 			if (state)
 				handle_app_switching(shift_held);
-			return true;
+			info.cancelled = true;
+			break;
 		}
-		return false;
+		info.cancelled = false;
+		break;
 	case KEY_GRAVE:
 		if (mod_held) {
 			if (state)
 				handle_window_switching(shift_held);
-			return true;
+			info.cancelled = true;
+			break;
 		}
-		return false;
-	default: return false;
+		info.cancelled = false;
+		break;
+	default: info.cancelled = false;
 	}
 }
 
 void WindowManager::handle_app_switching(bool backwards)
 {
-	LOG_TRACE("backwards = {}", backwards);
 	if (window_switcher.is_active())
 		window_switcher.abort();
 	if (!app_switcher.is_active())
@@ -290,11 +230,10 @@ void WindowManager::handle_app_switching(bool backwards)
 
 void WindowManager::handle_window_switching(bool backwards)
 {
-	LOG_TRACE("backwards = {}", backwards);
 	if (app_switcher.is_active())
 		app_switcher.focus_selected();
 	if (!window_switcher.is_active()) {
-		auto last_window = g_pCompositor->m_lastWindow;
+		auto last_window = Desktop::focusState()->window();
 		if (!last_window)
 			return;
 		auto it = app_id_to_stuff_map.find(last_window->m_class);
@@ -305,23 +244,24 @@ void WindowManager::handle_window_switching(bool backwards)
 	window_switcher.move(backwards);
 }
 
-void WindowManager::render_app_switcher()
+void WindowManager::render_app_switcher(eRenderStage stage)
 {
-	if (app_switcher.is_active())
+	if (app_switcher.is_active() && stage == RENDER_POST_WINDOWS)
 		g_pHyprRenderer->m_renderPass.add(makeUnique<AppSwitcherPassElement>(&app_switcher));
 }
 
-SDispatchResult WindowManager::dump_debug_info()
+ActionResult WindowManager::dump_debug_info()
 {
-	log(LOG,
+	return {};
+/*	log(TRACE,
 	    "Compositor windows: {}",
 	    g_pCompositor->m_windows
 	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log(LOG,
+	log(TRACE,
 	    "Compositor focus history: {}",
-	    g_pCompositor->m_windowFocusHistory
+	    Desktop::History::windowTracker()->fullHistory()
 	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log(LOG, "WM:");
+	log(TRACE, "WM:");
 	app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
 	// this is terrible since it causes the focused app to be raised but
 	// ::hide() is a private method (and rightfully so) and this is a debugging
@@ -332,11 +272,11 @@ SDispatchResult WindowManager::dump_debug_info()
 		std::string app_name      = "<future>";
 		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
 			app_name = app_render_data->app_name;
-		log(LOG, "{:<4}{}: {}", "", app_id, app_name);
+		log(TRACE, "{:<4}{}: {}", "", app_id, app_name);
 		for (const auto &window : windows)
-			log(LOG, "{:<8}{}", "", as_str(window));
+			log(TRACE, "{:<8}{}", "", as_str(window));
 	}
-	return {};
+	return {};*/
 }
 
 std::span<PHLWINDOWREF> WindowManager::get_app_switcher_current()

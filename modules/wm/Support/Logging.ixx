@@ -1,14 +1,23 @@
-module;
-
-#include "Hyprland.h"
-
 export module wm.Support.Logging;
 
+import std;
+import hyprland.desktop;
+import hyprland.helpers;
+import hyprland.debug;
+import hyprland.config;
+import hyprutils.cli;
+
+using Hyprutils::CLI::eLogLevel;
+using Desktop::View::CWindow;
+using Log::INFO;
+using std::uintptr_t;
+
 namespace wm {
+
 #ifdef DEBUG_LOGS
 export template <typename... Args>
 void log(eLogLevel level, std::format_string<Args...> fmt_string, Args &&...fmt_args)
-{ Debug::log(level, "[wm] {}", std::format(fmt_string, std::forward<Args>(fmt_args)...)); }
+{ Log::logger->log(level, "[wm] {}", std::format(fmt_string, std::forward<Args>(fmt_args)...)); }
 #else
 export template <typename... Args>
 void log(eLogLevel, std::format_string<Args...>, Args &&...)

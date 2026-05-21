@@ -1,5 +1,5 @@
+add_subdirectory(ADT)
 add_subdirectory(AppSwitcher)
 add_subdirectory(Support)
 add_subdirectory(WindowManager)
 add_subdirectory(WindowSwitcher)
-add_subdirectory(llvm)

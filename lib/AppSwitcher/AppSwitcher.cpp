@@ -1,27 +1,32 @@
 module;
 
-#include "Hyprland.h"
-#include "Logging.h"
-
 #include <cassert>
+#include <GLES3/gl32.h>
+#include <wayland-server-core.h>
 
 module wm.AppSwitcher;
 
 import std;
+import hyprland.globals;
+import hyprland.render;
 import wm.Support;
 
 using namespace wm;
 using namespace std::chrono_literals;
 
-AppSwitcher::AppSwitcher() :
+using std::size_t;
+using std::uint64_t;
+using Log::INFO;
+using Render::GL::g_pHyprOpenGL;
+using Render::GL::CHyprOpenGLImpl;
+
+AppSwitcher::AppSwitcher(const AppSwitcherConfig &config) :
     app_id_focus_history(nullptr),
     app_stuff_map(nullptr),
     timer(nullptr),
-    idx(0)
-{
-	active = false;
-	reload_config();
-}
+    idx(0),
+    active(false)
+{ reset_config(config); }
 
 bool AppSwitcher::is_active() const { return active; }
 
@@ -56,7 +61,7 @@ void AppSwitcher::show(
 
 void AppSwitcher::move(bool backwards)
 {
-	LOG_TRACE("backwards = {}, idx = {}", backwards, idx);
+	// LOG_TRACE("backwards = {}, idx = {}", backwards, idx);
 
 	if (app_id_focus_history->empty())
 		return;
@@ -76,7 +81,7 @@ void AppSwitcher::move(bool backwards)
 	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
 	);
 
-	if (auto monitor = g_pCompositor->m_lastMonitor.lock())
+	if (auto monitor = Desktop::focusState()->monitor())
 		g_pHyprRenderer->damageMonitor(monitor);
 }
 
@@ -84,7 +89,7 @@ std::string AppSwitcher::get_current_selection() const { return (*app_id_focus_h
 
 void AppSwitcher::focus_selected()
 {
-	LOG_TRACE("{}", "");
+	// LOG_TRACE("{}", "");
 
 	assert(
 	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
@@ -105,7 +110,7 @@ void AppSwitcher::focus_selected()
 
 void AppSwitcher::hide()
 {
-	LOG_TRACE("{}", "");
+	// LOG_TRACE("{}", "");
 	if (visible) {
 		wl_event_source_remove(timer);
 		timer = nullptr;
@@ -138,24 +143,24 @@ std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 	size_t num_icons  = app_id_focus_history->size();
 	auto total_width  = container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
 	auto total_height = 2 * container_padding + icon_size + label_sep + font_height;
-	auto monitor      = g_pCompositor->m_lastMonitor.lock();
+	auto monitor      = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
+		log(INFO, "monitor {} is null", as_str(Desktop::focusState()->monitor()));
 		return std::unexpected{std::monostate{}};
 	}
 	auto center = monitor->m_size * monitor->m_scale / 2;
-	return CBox{
+	return CBox(
 	    center.x - total_width / 2.0, center.y - total_height / 2.0, total_width, total_height
-	};
+	);
 }
 
 void AppSwitcher::render()
 {
-	LOG_TRACE("{}", "");
+	// LOG_TRACE("{}", "");
 
-	auto monitor = g_pCompositor->m_lastMonitor.lock();
+	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log(INFO, "monitor {} is null", as_str(g_pCompositor->m_lastMonitor));
+		log(INFO, "monitor {} is null", as_str(Desktop::focusState()->monitor()));
 		return;
 	}
 
@@ -184,25 +189,27 @@ void AppSwitcher::render()
 	    container_box.h + 2 * container_border_width
 	};
 	if (container_border_width > 0) {
-		CHyprOpenGLImpl::SRectRenderData border_data;
-		border_data.round = container_radius;
-		border_data.blur  = true;
-		g_pHyprOpenGL->renderRect(border_box, container_border_color, border_data);
+		g_pHyprOpenGL->renderRect(
+		    border_box,
+		    container_border_color,
+		    CHyprOpenGLImpl::SRectRenderData{.round = container_radius, .blur = true}
+		);
 	}
 
 	// Draw container background
-	CHyprOpenGLImpl::SRectRenderData container_data;
-	container_data.round = container_radius;
-	container_data.blur  = true;
-	g_pHyprOpenGL->renderRect(container_box, container_background_color, container_data);
+	g_pHyprOpenGL->renderRect(
+	    container_box,
+	    container_background_color,
+	    CHyprOpenGLImpl::SRectRenderData{.round = container_radius, .blur = true}
+	);
 
 	double icon_x   = container_box.x + container_padding;
 	// TODO: use multiple rows when too many icons
 	double icon_y   = container_box.y + container_padding;
 	CBox   icon_box = {icon_x, icon_y, icon_size, icon_size};
 	CBox   text_box = {
-	    icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
-	};
+        icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
+    };
 	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		// Draw selection highlight if this is the selected app
 		if (i == idx) {
@@ -230,12 +237,12 @@ void AppSwitcher::render()
 		auto &[app_name, icon_texture] = *data_ptr;
 
 		if (icon_texture && icon_texture->m_texID) {
-			CRegion damage = icon_box;
-			g_pHyprOpenGL->renderTextureInternal(
-			    icon_texture,
-			    icon_box,
-			    {.damage = &damage, .a = 1.0, .round = 0, .cmBackToSRGBSource = nullptr}
-			);
+			CRegion                             damage = icon_box;
+			CHyprOpenGLImpl::STextureRenderData tex_data;
+			tex_data.damage   = &damage;
+			tex_data.overallA = 1.0;
+			tex_data.round    = 0;
+			g_pHyprOpenGL->renderTexture(icon_texture, icon_box, tex_data);
 		} else {
 			log(INFO, "AppSwitcher: icon not available for {}", app_name);
 		}
@@ -244,16 +251,16 @@ void AppSwitcher::render()
 
 		// Draw label
 		if (auto text_texture =
-		        g_pHyprOpenGL->renderText(app_name, font_color, font_size, false, font_family)) {
-			double text_width  = text_texture->m_size.x;
-			text_box.x        -= text_width / 2.0;
-			text_box.w         = text_width;
-			CRegion damage     = text_box;
-			g_pHyprOpenGL->renderTextureInternal(
-			    text_texture,
-			    text_box,
-			    {.damage = &damage, .a = 1.0, .round = 0, .cmBackToSRGBSource = nullptr}
-			);
+		        g_pHyprRenderer->renderText(app_name, font_color, font_size, false, font_family)) {
+			double text_width                          = text_texture->m_size.x;
+			text_box.x                                -= text_width / 2.0;
+			text_box.w                                 = text_width;
+			CRegion                             damage = text_box;
+			CHyprOpenGLImpl::STextureRenderData render_data;
+			render_data.overallA = 1.0;
+			render_data.damage   = &damage;
+			render_data.round    = 0;
+			g_pHyprOpenGL->renderTexture(text_texture, text_box, render_data);
 			text_box.x += text_width / 2.0;
 		}
 
@@ -268,42 +275,33 @@ void AppSwitcher::render()
 	g_pHyprRenderer->damageMonitor(monitor);
 }
 
-void AppSwitcher::reload_config()
+void AppSwitcher::reset_config(const AppSwitcherConfig &config)
 {
-	LOG_TRACE("{}", "AppSwitcher: reloading config");
-
 	container_background_color =
-	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:container:background_color"));
+	    CHyprColor{static_cast<uint64_t>(config.container_background_color->value())};
 	container_border_color =
-	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:container:border_color"));
-	container_padding =
-	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:padding"));
-	container_radius =
-	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:radius"));
-	container_border_width =
-	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:container:border_width"));
+	    CHyprColor{static_cast<uint64_t>(config.container_border_color->value())};
+	container_padding      = config.container_padding->value();
+	container_radius       = config.container_radius->value();
+	container_border_width = config.container_border_width->value();
 
 	selection_background_color =
-	    CHyprColor(**get_config<Hyprlang::INT>("app_switcher:selection:background_color"));
-	selection_padding =
-	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:selection:padding"));
-	selection_radius =
-	    static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:selection:radius"));
+	    CHyprColor{static_cast<uint64_t>(config.selection_background_color->value())};
+	selection_padding = config.selection_padding->value();
+	selection_radius  = static_cast<int>(config.selection_radius->value());
 
-	font_family = *get_config<char>("app_switcher:label:font_family");
-	font_color  = CHyprColor(**get_config<Hyprlang::INT>("app_switcher:label:font_color"));
-	font_size   = static_cast<int>(**get_config<Hyprlang::INT>("app_switcher:label:font_size"));
-	label_sep = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:label:separation"));
+	font_family = config.font_family->value();
+	font_color  = CHyprColor{static_cast<uint64_t>(config.font_color->value())};
+	font_size   = static_cast<int>(config.font_size->value());
+	label_sep   = config.label_sep->value();
 
-	icon_size = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:icons:size"));
-	icon_sep  = static_cast<double>(**get_config<Hyprlang::INT>("app_switcher:icons:separation"));
+	icon_size = config.icon_size->value();
+	icon_sep  = config.icon_sep->value();
 
-	// TODO: this is ugly, figure out the right way to do this
-	font_height = font_size
-	                  ? g_pHyprOpenGL
-	                        ->renderText("X", font_color, font_size, false, font_family.c_str())
-	                        ->m_size.y
-	                  : 0;
+	font_height =
+	    font_size
+	        ? g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family)->m_size.y
+	        : 0;
 }
 
 void AppSwitcher::load_icon_textures() const
@@ -317,7 +315,7 @@ void AppSwitcher::load_icon_textures() const
 				app_info = AppRenderData{app_info_ptr->name, {}};
 			} else {
 				auto &icon      = app_info_ptr->icon;
-				auto  texture   = makeShared<CTexture>();
+				auto  texture   = g_pHyprRenderer->createTexture();
 				texture->m_size = {
 				    static_cast<double>(icon.width), static_cast<double>(icon.height)
 				};

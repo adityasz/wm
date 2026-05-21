@@ -1,8 +1,7 @@
-module;
-
-#include "Hyprland.h"
-
 module wm.AppSwitcher;
+
+import std;
+import hyprland.render;
 
 using namespace wm;
 
@@ -10,7 +9,11 @@ using namespace wm;
 
 AppSwitcherPassElement::AppSwitcherPassElement(AppSwitcher *instance) : instance(instance) {}
 
-void AppSwitcherPassElement::draw(const CRegion &) { instance->render(); }
+std::vector<CUniquePointer<IPassElement>> AppSwitcherPassElement::draw()
+{
+	instance->render();
+	return {};
+}
 
 bool AppSwitcherPassElement::needsLiveBlur() { return false; }
 

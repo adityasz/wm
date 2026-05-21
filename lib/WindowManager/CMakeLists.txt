@@ -1,15 +1,5 @@
-add_wm_library(WindowManager
-    PUBLIC
-        WindowManager.ixx
-    PRIVATE
-        WindowManager.cpp
-)
-
-target_link_libraries(WindowManager
-    PUBLIC
-        llvm::SmallVector
-        PkgConfig::HyprDeps
-        AppSwitcher
-        Support
-        WindowSwitcher
+wm_add_library(WindowManager
+    WindowManager.cpp
+    MODULES WindowManager.ixx
+	LINK_LIBS PUBLIC Hyprland AppSwitcher WindowSwitcher
 )

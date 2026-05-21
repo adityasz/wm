@@ -9,20 +9,22 @@ module;
 #include <glibmm/keyfile.h>
 #include <gtkmm.h>
 
-#include "Hyprland.h"
 #include "nkutils.h"
 
 module wm.AppSwitcher.AppInfoLoader;
 
 import std;
+import hyprland.debug;
+import hyprland.config;
 import wm.Support;
 
 using namespace wm;
+using Log::INFO;
 
 const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
 const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
 
-AppInfoLoader::AppInfoLoader() :
+AppInfoLoader::AppInfoLoader(const AppInfoLoaderConfig &config) :
     theme_context(nk_xdg_theme_context_new(icon_fallbacks, sound_fallbacks)),
     worker(&AppInfoLoader::worker_thread, this),
     max_entries(20),
@@ -33,16 +35,16 @@ AppInfoLoader::AppInfoLoader() :
 	app_dirs.insert(app_dirs.begin(), Glib::get_user_data_dir());
 	for (auto &data_dir : app_dirs)
 		data_dir += "/applications/";
-	reload_config();
+	reset_config(config);
 }
 
-void AppInfoLoader::reload_config()
+void AppInfoLoader::reset_config(const AppInfoLoaderConfig &config)
 {
-	icon_size = static_cast<uint16_t>(**get_config<Hyprlang::INT>("app_switcher:icons:size"));
+	icon_size = static_cast<uint16_t>(config.icon_size->value());
 
 	themes.reserve(2); // people would usually have only one theme
 	for (auto theme :
-	     std::string_view(*get_config<char>("app_switcher:icons:theme"))
+	     std::string_view(config.theme->value())
 	         | std::views::split(std::string_view(","))
 	         | std::views::transform([](auto s) {
 		           auto is_space = [](unsigned char c) { return std::isspace(c); };

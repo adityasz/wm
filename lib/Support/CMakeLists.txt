@@ -1,13 +1,8 @@
-add_wm_library(Support
-    PUBLIC
+wm_add_library(Support
+	Utils.cpp
+	MODULES
         Support.ixx
         Logging.ixx
         Utils.ixx
-    PRIVATE
-        Utils.cpp
-)
-
-target_link_libraries(Support
-    PUBLIC
-        PkgConfig::HyprDeps
+	LINK_LIBS PUBLIC Hyprland Hyprutils
 )

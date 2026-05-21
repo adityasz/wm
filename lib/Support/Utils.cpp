@@ -1,15 +1,17 @@
-module;
-
-#include "Hyprland.h"
-
 module wm.Support.Utils;
+
+import std;
+import hyprland.desktop;
+import hyprland.globals;
+import hyprland.managers;
+import hyprutils.memory;
 
 namespace wm {
 void focus_and_raise_window(
-    const PHLWINDOW &window, const SP<CWLSurfaceResource> &pSurface, bool preserveFocusHistory
+    const PHLWINDOW &window, const CSharedPointer<CWLSurfaceResource> &pSurface, [[maybe_unused]] bool preserveFocusHistory
 )
 {
-	if (auto last_monitor = g_pCompositor->m_lastMonitor.lock();
+	if (auto last_monitor = Desktop::focusState()->monitor();
 	    last_monitor
 	    && last_monitor->m_activeSpecialWorkspace
 	    && window->m_workspace != last_monitor->m_activeSpecialWorkspace) {
@@ -21,9 +23,9 @@ void focus_and_raise_window(
 			g_pCompositor->setWindowFullscreenInternal(fullscreen_window, FSMODE_NONE);
 		}
 	}
-	g_pCompositor->focusWindow(window, pSurface, preserveFocusHistory);
-	if (!window->m_groupData.pNextWindow.expired())
-		window->setGroupCurrent(window);
+	Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_OTHER, pSurface, false);
+	if (window->m_group)
+		window->m_group->setCurrent(window);
 	g_pCompositor->changeWindowZOrder(window, true);
 	g_pInputManager->simulateMouseMovement();
 }

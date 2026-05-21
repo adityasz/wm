@@ -30,25 +30,18 @@ target_compile_options(nkutils-icons PRIVATE
 )
 target_link_libraries(nkutils-icons PUBLIC PkgConfig::AppInfoDeps)
 
-add_wm_library(AppSwitcher
-    PUBLIC
+wm_add_library(AppSwitcher
+	AppInfoLoader.cpp
+	AppSwitcher.cpp
+	AppSwitcherPassElement.cpp
+	Image.cpp
+
+	MODULES
         AppSwitcher.ixx
         AppInfoLoader.ixx
         Image.ixx
-    PRIVATE
-        AppInfoLoader.cpp
-        AppSwitcher.cpp
-        AppSwitcherPassElement.cpp
-        Image.cpp
-)
-
-target_link_libraries(AppSwitcher
-    PRIVATE
-        turbojpeg
-        Support
-    PUBLIC
-        PkgConfig::HyprDeps
-        nkutils-icons
-        PkgConfig::AppInfoDeps
-        llvm::SmallVector
+	
+	LINK_LIBS
+		PRIVATE turbojpeg
+		PUBLIC Hyprland Hyprutils Support ADT nkutils-icons PkgConfig::AppInfoDeps
 )
