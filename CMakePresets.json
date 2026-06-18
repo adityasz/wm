@@ -22,6 +22,7 @@
 			"binaryDir": "${sourceDir}/build/debug",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
+				"DEBUG_LOGS": "ON",
 				"SWITCHER_MOD": "KEY_LEFTALT"
 			}
 		},

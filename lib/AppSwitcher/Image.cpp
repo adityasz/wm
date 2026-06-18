@@ -160,10 +160,11 @@ static Image load_svg(const char *path, int target_size)
 	};
 }
 
-Image read_image(std::string_view path, int size)
+namespace wm {
+Image read_image(const std::string &path, int size)
 {
 	if (path.ends_with(".svg"))
-		return load_svg(std::string(path).c_str(), size);
+		return load_svg(path.c_str(), size);
 	auto data = read_file(path);
 	if (path.ends_with(".png"))
 		return load_png(data);
@@ -171,3 +172,4 @@ Image read_image(std::string_view path, int size)
 		return load_jpg(data);
 	return {};
 }
+} // namespace wm

@@ -19,5 +19,5 @@ struct Image {
 	ImageFormat                format;
 };
 
-Image read_image(std::string_view path, int size);
+Image read_image(const std::string &path, int size);
 } // namespace wm

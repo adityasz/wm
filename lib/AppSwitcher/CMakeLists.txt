@@ -40,8 +40,8 @@ wm_add_library(AppSwitcher
         AppSwitcher.ixx
         AppInfoLoader.ixx
         Image.ixx
-	
+
 	LINK_LIBS
 		PRIVATE turbojpeg
-		PUBLIC Hyprland Hyprutils Support ADT nkutils-icons PkgConfig::AppInfoDeps
+		PUBLIC Hyprland Hyprutils Support llvm_modules nkutils-icons PkgConfig::AppInfoDeps
 )

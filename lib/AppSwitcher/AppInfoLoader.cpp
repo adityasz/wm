@@ -169,7 +169,7 @@ AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initi
 {
 	auto desktop_file_path = get_desktop_file_path(app_id, initial_app_id);
 	if (desktop_file_path.empty()) {
-		log(INFO, "desktop file not found for {}/{}", app_id, initial_app_id);
+		log<LogLevel::DEBUG>("desktop file not found for {}/{}", app_id, initial_app_id);
 		return std::make_unique<AppInfo>(app_id, Image{});
 	}
 
@@ -205,9 +205,7 @@ AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initi
 	if (auto icon_path = nk_xdg_theme_get_icon(
 	        theme_context, themes.data(), "Applications", icon_name.c_str(), icon_size, 1, TRUE
 	    )) {
-		return std::make_unique<AppInfo>(
-		    app_name, read_image(std::string_view(icon_path), icon_size)
-		);
+		return std::make_unique<AppInfo>(app_name, read_image(std::string(icon_path), icon_size));
 	}
 
 	return std::make_unique<AppInfo>(app_name, Image{});

@@ -1,3 +1,7 @@
+module;
+
+#include <cassert>
+
 module wm.Support.Utils;
 
 import std;
@@ -7,8 +11,18 @@ import hyprland.managers;
 import hyprutils.memory;
 
 namespace wm {
+
+void init_die(void *handle, const auto &msg)
+{
+	auto error = std::format("[wm] Error: Initialization failed: {}", msg);
+	HyprlandAPI::addNotification(handle, error, CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
+	throw std::runtime_error(error);
+}
+
 void focus_and_raise_window(
-    const PHLWINDOW &window, const CSharedPointer<CWLSurfaceResource> &pSurface, [[maybe_unused]] bool preserveFocusHistory
+    const PHLWINDOW                          &window,
+    const CSharedPointer<CWLSurfaceResource> &pSurface,
+    [[maybe_unused]] bool                     preserveFocusHistory
 )
 {
 	if (auto last_monitor = Desktop::focusState()->monitor();
@@ -29,4 +43,5 @@ void focus_and_raise_window(
 	g_pCompositor->changeWindowZOrder(window, true);
 	g_pInputManager->simulateMouseMovement();
 }
+
 } // namespace wm

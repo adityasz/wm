@@ -15,6 +15,7 @@ pkg_check_modules(HyprDeps REQUIRED IMPORTED_TARGET
     libdrm
     libinput
     libudev
+    lua
     pangocairo
     pixman-1
     wayland-server
@@ -71,13 +72,32 @@ endforeach()
 list(TRANSFORM HYPRUTILS_MODULES APPEND ".ixx")
 
 wm_add_library(Hyprland
-	MODULES_DIR ${GENERATED_MODULES_DIR}/hyprland
+    MODULES_DIR "${GENERATED_MODULES_DIR}/hyprland"
     MODULES ${HYPRLAND_MODULES}
     LINK_LIBS PUBLIC PkgConfig::HyprDeps
 )
 
 wm_add_library(Hyprutils
-	MODULES_DIR ${GENERATED_MODULES_DIR}/hyprutils
-	MODULES ${HYPRUTILS_MODULES}
-    LINK_LIBS PUBLIC PkgConfig::HyprDeps
+    MODULES_DIR "${GENERATED_MODULES_DIR}/hyprutils"
+    MODULES ${HYPRUTILS_MODULES}
+        LINK_LIBS PUBLIC PkgConfig::HyprDeps
+)
+
+find_package(LLVM REQUIRED CONFIG)
+llvm_map_components_to_libnames(llvm_libs support)
+
+set(llvm_headers ADT/SmallVector.h)
+list(TRANSFORM llvm_headers PREPEND "${LLVM_INCLUDE_DIRS}/llvm/")
+cxxmgen("llvm.Support"
+    OUTPUT "${GENERATED_MODULES_DIR}/llvm/Support.ixx"
+    HEADERS ${llvm_headers}
+    RESTRICT
+    JOBS 1
+    CLANG_OPTS ${clang_opts}
+)
+
+wm_add_library(llvm_modules
+    MODULES_DIR "${GENERATED_MODULES_DIR}/llvm"
+    MODULES Support.ixx
+    LINK_LIBS PUBLIC $<IF:$<CONFIG:Debug>,LLVM,${llvm_libs}>
 )

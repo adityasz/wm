@@ -16,7 +16,6 @@ using Config::Actions::actionError;
 using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
 using Hyprutils::Memory::makeUnique;
-using Log::INFO, Log::ERR, Log::TRACE;
 
 using namespace wm;
 using namespace std::chrono_literals;
@@ -70,7 +69,7 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 	if (!window)
 		return;
 	if (window_switcher.is_active()) {
-		log(INFO, "window switcher is active, ignoring touch");
+		log<LogLevel::DEBUG>("window switcher is active, ignoring touch");
 		return;
 	}
 	if (auto it = app_id_to_stuff_map.find(window->m_class); it == app_id_to_stuff_map.end()) {
@@ -116,7 +115,11 @@ ActionResult WindowManager::focus_or_exec(const char *app_id, const char *comman
 	auto it = app_id_to_stuff_map.find(app_id);
 	if (it == app_id_to_stuff_map.end()) {
 		if (!Config::Supplementary::executor()->spawn(command))
-			return actionError(std::format("Failed to spawn {}", command), eActionErrorLevel::INFO, eActionErrorCode::EXECUTION_FAILED);
+			return actionError(
+			    std::format("Failed to spawn {}", command),
+			    eActionErrorLevel::INFO,
+			    eActionErrorCode::EXECUTION_FAILED
+			);
 		return {};
 	}
 
@@ -128,7 +131,7 @@ ActionResult WindowManager::focus_or_exec(const char *app_id, const char *comman
 		    "Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
 	}
-	log(INFO, "focusing {}", as_str(window));
+	log<LogLevel::DEBUG>("focusing {}", as_str(window));
 	focus_and_raise_window(window);
 	return {};
 }
@@ -138,7 +141,11 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	auto it = app_id_to_stuff_map.find(app_id);
 	if (it == app_id_to_stuff_map.end()) {
 		if (!Config::Supplementary::executor()->spawn(command))
-			return actionError(std::format("Failed to spawn {}", command), eActionErrorLevel::INFO, eActionErrorCode::EXECUTION_FAILED);
+			return actionError(
+			    std::format("Failed to spawn {}", command),
+			    eActionErrorLevel::INFO,
+			    eActionErrorCode::EXECUTION_FAILED
+			);
 		return {};
 	}
 
@@ -147,27 +154,28 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	if (!window) {
 		std::ranges::remove(it->second.windows, window_ref);
 		return actionError(
-			"Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		    "Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
 	}
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
 		return actionError(
-			"Monitor not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		    "Monitor not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
 	}
 	if (auto active_workspace = monitor->m_activeWorkspace;
 	    window->m_workspace != active_workspace) {
-		log(INFO,
+		log<LogLevel::DEBUG>(
 		    "moving {} from workspace '{}' to the active workspace '{}'",
 		    window,
 		    window->m_workspace->m_name,
-		    active_workspace->m_name);
+		    active_workspace->m_name
+		);
 		g_pCompositor->moveWindowToWorkspaceSafe(window, active_workspace);
 	} else {
 		g_pCompositor->warpCursorTo(window->middle());
 	}
-	log(INFO, "focusing {}", as_str(window));
+	log<LogLevel::DEBUG>("focusing {}", as_str(window));
 	focus_and_raise_window(window);
 	return {};
 }
@@ -253,15 +261,15 @@ void WindowManager::render_app_switcher(eRenderStage stage)
 ActionResult WindowManager::dump_debug_info()
 {
 	return {};
-/*	log(TRACE,
+/*	log<TRACE>
 	    "Compositor windows: {}",
 	    g_pCompositor->m_windows
 	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log(TRACE,
+	log<TRACE>
 	    "Compositor focus history: {}",
 	    Desktop::History::windowTracker()->fullHistory()
 	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log(TRACE, "WM:");
+	log<TRACE>("WM:");
 	app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
 	// this is terrible since it causes the focused app to be raised but
 	// ::hide() is a private method (and rightfully so) and this is a debugging
@@ -272,9 +280,9 @@ ActionResult WindowManager::dump_debug_info()
 		std::string app_name      = "<future>";
 		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
 			app_name = app_render_data->app_name;
-		log(TRACE, "{:<4}{}: {}", "", app_id, app_name);
+		log<TRACE>("{:<4}{}: {}", "", app_id, app_name);
 		for (const auto &window : windows)
-			log(TRACE, "{:<8}{}", "", as_str(window));
+			log<TRACE>("{:<8}{}", "", as_str(window));
 	}
 	return {};*/
 }

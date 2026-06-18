@@ -1,7 +1,7 @@
 module;
 
-#include <cassert>
 #include <GLES3/gl32.h>
+#include <cassert>
 #include <wayland-server-core.h>
 
 module wm.AppSwitcher;
@@ -16,7 +16,6 @@ using namespace std::chrono_literals;
 
 using std::size_t;
 using std::uint64_t;
-using Log::INFO;
 using Render::GL::g_pHyprOpenGL;
 using Render::GL::CHyprOpenGLImpl;
 
@@ -51,7 +50,7 @@ void AppSwitcher::show(
 	);
 	wl_event_source_timer_update(timer, 100);
 
-	log(INFO, "show: {}", *app_id_focus_history);
+	log<LogLevel::DEBUG>("show: {}", *app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
@@ -104,7 +103,7 @@ void AppSwitcher::focus_selected()
 		focus_and_raise_window(window);
 	} else {
 		std::ranges::remove(windows, window_ref);
-		log(INFO, "    {} became null", as_str(window_ref));
+		log<LogLevel::DEBUG>("    {} became null", as_str(window_ref));
 	}
 }
 
@@ -145,7 +144,7 @@ std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 	auto total_height = 2 * container_padding + icon_size + label_sep + font_height;
 	auto monitor      = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log(INFO, "monitor {} is null", as_str(Desktop::focusState()->monitor()));
+		log<LogLevel::DEBUG>("monitor {} is null", as_str(Desktop::focusState()->monitor()));
 		return std::unexpected{std::monostate{}};
 	}
 	auto center = monitor->m_size * monitor->m_scale / 2;
@@ -160,7 +159,7 @@ void AppSwitcher::render()
 
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log(INFO, "monitor {} is null", as_str(Desktop::focusState()->monitor()));
+		log<LogLevel::DEBUG>("monitor {} is null", as_str(Desktop::focusState()->monitor()));
 		return;
 	}
 
@@ -208,8 +207,8 @@ void AppSwitcher::render()
 	double icon_y   = container_box.y + container_padding;
 	CBox   icon_box = {icon_x, icon_y, icon_size, icon_size};
 	CBox   text_box = {
-        icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
-    };
+	    icon_x + icon_size / 2.0, icon_y + icon_size + label_sep, icon_size, font_height
+	};
 	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		// Draw selection highlight if this is the selected app
 		if (i == idx) {
@@ -229,7 +228,7 @@ void AppSwitcher::render()
 		auto &[_, app_stuff] = *app_stuff_map->find(app_id); // must exist
 		auto data_ptr        = std::get_if<AppRenderData>(&app_stuff.app_info);
 		if (!data_ptr) {
-			log(INFO, "AppSwitcher: data not available for class={}", app_id);
+			log<LogLevel::DEBUG>("AppSwitcher: data not available for class={}", app_id);
 			icon_x     += icon_size + icon_sep;
 			text_box.x += icon_size + icon_sep;
 			continue;
@@ -244,7 +243,7 @@ void AppSwitcher::render()
 			tex_data.round    = 0;
 			g_pHyprOpenGL->renderTexture(icon_texture, icon_box, tex_data);
 		} else {
-			log(INFO, "AppSwitcher: icon not available for {}", app_name);
+			log<LogLevel::DEBUG>("AppSwitcher: icon not available for {}", app_name);
 		}
 
 		icon_box.x += icon_size + icon_sep;

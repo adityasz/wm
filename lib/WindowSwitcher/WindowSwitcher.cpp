@@ -11,17 +11,13 @@ import hyprland.render;
 import wm.Support;
 
 using std::size_t;
+
 using namespace wm;
-using Log::INFO;
 
 WindowSwitcher::WindowSwitcher() : app_windows(nullptr), idx(0), active(false) {}
 
 void WindowSwitcher::seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 {
-	// LOG_TRACE("{}", *app_windows | std::views::transform([](auto &window) {
-	// 	          return as_str(window);
-	//           }));
-
 	idx    = 0;
 	active = true;
 
@@ -59,8 +55,6 @@ void WindowSwitcher::seed(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 
 void WindowSwitcher::move(bool backwards)
 {
-	// LOG_TRACE("backwards={}", backwards);
-
 	if (app_windows->empty())
 		return;
 
@@ -79,7 +73,7 @@ void WindowSwitcher::move(bool backwards)
 
 	[[likely]]
 	if (auto window = (*app_windows)[idx].lock()) {
-		log(INFO, "    switching to {}", as_str(window));
+		log<LogLevel::DEBUG>("    switching to {}", as_str(window));
 		focus_and_raise_window(window, nullptr, true);
 		return;
 	}
@@ -98,7 +92,7 @@ void WindowSwitcher::focus_selected()
 
 	[[likely]]
 	if (auto window = (*app_windows)[idx].lock()) {
-		log(INFO, "    switching to {}", as_str(window));
+		log<LogLevel::DEBUG>("    switching to {}", as_str(window));
 		focus_and_raise_window(window);
 		if (auto monitor = Desktop::focusState()->monitor())
 			g_pHyprRenderer->damageMonitor(monitor);
@@ -143,7 +137,7 @@ void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 
 	[[likely]]
 	if (auto next_window = (*app_windows)[idx].lock()) {
-		log(INFO, "    switching to {}", as_str(next_window));
+		log<LogLevel::DEBUG>("    switching to {}", as_str(next_window));
 		focus_and_raise_window(next_window, nullptr, true);
 	}
 }

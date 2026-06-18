@@ -5,7 +5,7 @@ module;
 export module wm.AppSwitcher;
 
 import std;
-import llvm.ADT;
+import llvm.Support;
 import hyprland.desktop;
 import hyprland.render;
 import hyprland.helpers;
@@ -28,7 +28,7 @@ using Hyprutils::Memory::CUniquePointer;
 export namespace wm {
 
 struct AppRenderData {
-	std::string          app_name;
+	std::string                      app_name;
 	CSharedPointer<Render::ITexture> icon_texture;
 };
 
@@ -112,12 +112,14 @@ public:
 	~AppSwitcherPassElement() override = default;
 
 	std::vector<CUniquePointer<IPassElement>> draw() override;
-	bool                          needsLiveBlur() override;
-	bool                          needsPrecomputeBlur() override;
-	std::optional<CBox>           boundingBox() override;
-	CRegion                       opaqueRegion() override;
+	bool                                      needsLiveBlur() override;
+	bool                                      needsPrecomputeBlur() override;
+	std::optional<CBox>                       boundingBox() override;
+	CRegion                                   opaqueRegion() override;
 
-	const char      *passName() override { return "AppSwitcherPassElement"; }
+	static constexpr const char *pass_name = "AppSwitcherPassElement";
+
+	const char      *passName() override { return pass_name; }
 	ePassElementType type() override { return EK_CUSTOM; }
 
 private:
