@@ -19,17 +19,17 @@ bool StringPoolEq::operator()(const StringPoolEntry &lhs, const StringPoolEntry 
 bool StringPoolEq::operator()(std::string_view lhs, const StringPoolEntry &rhs) const
 { return (*this)(rhs, lhs); }
 
-const char *StringPool::get(std::string_view sv)
+std::pair<const char *, bool> StringPool::get(std::string_view sv)
 {
 	auto it = pool.find(sv);
 	if (it != pool.end())
-		return it->first.get();
+		return {it->first.get(), false};
 	auto len = sv.size();
 	auto ptr = std::make_unique<char[]>(len + 1);
 	std::memcpy(ptr.get(), sv.data(), len);
 	ptr[len]              = '\0';
 	auto [inserted_it, _] = pool.insert(std::make_pair(std::move(ptr), len));
-	return inserted_it->first.get();
+	return {inserted_it->first.get(), true};
 }
 
 const char *StringPool::find(std::string_view sv) const

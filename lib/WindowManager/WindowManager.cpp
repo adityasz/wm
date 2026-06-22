@@ -28,8 +28,8 @@ WindowManager::WindowManager(const WindowManagerConfig &config) :
 {
 	app_id_to_stuff_map.reserve(20);
 	for (auto &window : Desktop::History::windowTracker()->fullHistory() | std::views::reverse) {
-		const char *app_id = app_id_pool.get(window->m_initialClass);
-		if (!std::ranges::contains(app_id_focus_history, app_id)) {
+		auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
+		if (inserted) {
 			app_id_focus_history.push_back(app_id);
 			app_id_to_stuff_map[app_id].app_info =
 			    app_info_loader.get_app_info(app_id, window->m_initialClass);
@@ -53,16 +53,18 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 {
 	if (!window)
 		return;
-	const char *app_id = app_id_pool.get(window->m_initialClass);
-	if (auto it = app_id_to_stuff_map.find(app_id); it == app_id_to_stuff_map.end()) {
+	auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
+	if (inserted) {
 		auto [it_new, _] = app_id_to_stuff_map.try_emplace(app_id);
 		it_new->second.windows.push_back(window);
 		it_new->second.app_info = app_info_loader.get_app_info(app_id, window->m_initialClass);
 		app_id_focus_history.push_back(app_id);
-	} else {
+	} else if (
+	    auto &windows = app_id_to_stuff_map.find(app_id)->second.windows;
+	    !std::ranges::contains(windows, window)
+	) {
 		// Hyprland calls this twice sometimes
-		if (auto &windows = it->second.windows; !std::ranges::contains(windows, window))
-			windows.push_back(window);
+		windows.push_back(window);
 	}
 }
 
@@ -71,17 +73,17 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 	if (!window)
 		return;
 	if (window_switcher.is_active()) {
-		log<LogLevel::DEBUG, "window switcher is active, ignoring touch">();
+		log<LogLevel::TRACE, "window switcher is active, ignoring touch">();
 		return;
 	}
-	const char *app_id = app_id_pool.get(window->m_initialClass);
-	if (auto it = app_id_to_stuff_map.find(app_id); it == app_id_to_stuff_map.end()) {
+	auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
+	if (inserted) {
 		auto [it_new, _] = app_id_to_stuff_map.try_emplace(app_id);
 		it_new->second.windows.push_back(window);
 		it_new->second.app_info = app_info_loader.get_app_info(app_id, window->m_initialClass);
 		app_id_focus_history.insert(app_id_focus_history.begin(), app_id);
 	} else {
-		auto &windows   = it->second.windows;
+		auto &windows   = app_id_to_stuff_map.find(app_id)->second.windows;
 		auto  app_id_it = std::ranges::find(app_id_focus_history, app_id);
 		std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
 		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end())

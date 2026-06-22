@@ -28,9 +28,9 @@ class StringPool {
 	absl::flat_hash_set<StringPoolEntry, StringPoolHash, StringPoolEq> pool;
 
 public:
-	const char *get(std::string_view sv);
-	const char *find(std::string_view sv) const;
-	void        remove(std::string_view sv);
+	std::pair<const char *, bool> get(std::string_view sv);
+	const char                   *find(std::string_view sv) const;
+	void                          remove(std::string_view sv);
 };
 
 } // namespace wm
