@@ -29,7 +29,7 @@ AppSwitcher::AppSwitcher(const AppSwitcherConfig &config) :
 
 bool AppSwitcher::is_active() const { return active; }
 
-void AppSwitcher::show(
+void AppSwitcher::activate(
     std::vector<std::string>                  *app_id_focus_history,
     std::unordered_map<std::string, AppStuff> *app_stuff_map
 )
@@ -58,10 +58,8 @@ void AppSwitcher::show(
 	load_icon_textures();
 }
 
-void AppSwitcher::move(bool backwards)
+void AppSwitcher::highlight_next(bool backwards)
 {
-	// LOG_TRACE("backwards = {}, idx = {}", backwards, idx);
-
 	if (app_id_focus_history->empty())
 		return;
 
@@ -88,28 +86,19 @@ std::string AppSwitcher::get_current_selection() const { return (*app_id_focus_h
 
 void AppSwitcher::focus_selected()
 {
-	// LOG_TRACE("{}", "");
-
 	assert(
 	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
 	);
 
-	hide();
 	if (app_id_focus_history->empty())
 		return;
-	auto &windows    = app_stuff_map->at((*app_id_focus_history)[idx]).windows;
-	auto  window_ref = windows.front();
-	if (auto window = window_ref.lock()) {
-		focus_and_raise_window(window);
-	} else {
-		std::ranges::remove(windows, window_ref);
-		log<LogLevel::DEBUG>("    {} became null", as_str(window_ref));
-	}
+	focus_and_raise_window(app_stuff_map->at((*app_id_focus_history)[idx]).windows.front().lock());
+
+	deactivate();
 }
 
-void AppSwitcher::hide()
+void AppSwitcher::deactivate()
 {
-	// LOG_TRACE("{}", "");
 	if (visible) {
 		wl_event_source_remove(timer);
 		timer = nullptr;
@@ -118,15 +107,13 @@ void AppSwitcher::hide()
 	visible = false;
 }
 
-void AppSwitcher::abort() { hide(); }
-
 void AppSwitcher::on_close_app(std::string_view closing_app_id)
 {
 	if (!active)
 		return;
 
-	if (app_id_focus_history->empty() == 1)
-		return hide();
+	if (app_id_focus_history->empty())
+		return deactivate();
 
 	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		if (app_id == closing_app_id) {

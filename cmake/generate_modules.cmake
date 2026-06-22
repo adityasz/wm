@@ -86,7 +86,7 @@ wm_add_library(Hyprutils
 find_package(LLVM REQUIRED CONFIG)
 llvm_map_components_to_libnames(llvm_libs support)
 
-set(llvm_headers ADT/SmallVector.h)
+set(llvm_headers ADT/SmallVector.h ADT/STLExtras.h)
 list(TRANSFORM llvm_headers PREPEND "${LLVM_INCLUDE_DIRS}/llvm/")
 cxxmgen("llvm.Support"
     OUTPUT "${GENERATED_MODULES_DIR}/llvm/Support.ixx"

@@ -85,22 +85,21 @@ public:
 
 	void reset_config(const AppSwitcherConfig &config);
 
-	void show(
+	void activate(
 	    std::vector<std::string>                  *app_id_focus_history,
 	    std::unordered_map<std::string, AppStuff> *app_stuff_map
 	);
-	void                      move(bool backwards);
-	void                      abort();
-	[[nodiscard]] std::string get_current_selection() const;
+	void                      highlight_next(bool backwards);
 	void                      focus_selected();
-	void                      on_close_app(std::string_view closing_app_id);
+	void                      deactivate();
 	[[nodiscard]] bool        is_active() const;
+	[[nodiscard]] std::string get_current_selection() const;
+	void                      on_close_app(std::string_view closing_app_id);
 
 private:
 	void                                              load_icon_textures() const;
 	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
 	void                                              render();
-	void                                              hide();
 
 	friend class AppSwitcherPassElement;
 };

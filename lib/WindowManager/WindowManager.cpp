@@ -9,6 +9,7 @@ import hyprland.config;
 import hyprland.globals;
 import hyprland.render;
 import hyprutils.memory;
+import llvm.Support;
 import wm.Support;
 
 using Config::Actions::ActionResult;
@@ -39,9 +40,9 @@ WindowManager::WindowManager(const WindowManagerConfig &config) :
 void WindowManager::reset_config()
 {
 	if (app_switcher.is_active())
-		app_switcher.abort();
+		app_switcher.deactivate();
 	if (window_switcher.is_active())
-		window_switcher.abort();
+		window_switcher.deactivate();
 
 	app_switcher.reset_config(config.app_switcher);
 	app_info_loader.reset_config(config.app_info_loader);
@@ -79,16 +80,13 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 		    app_info_loader.get_app_info(window->m_class, window->m_initialClass);
 		app_id_focus_history.insert(app_id_focus_history.begin(), window->m_class);
 	} else {
-		// app id can change at runtime
 		auto &windows   = it->second.windows;
 		auto  app_id_it = std::ranges::find(app_id_focus_history, window->m_class);
 		std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
-		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end()) {
+		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end())
 			std::rotate(windows.begin(), window_it, window_it + 1);
-		} else {
-			if (!std::ranges::contains(windows, window))
-				windows.insert(windows.begin(), window);
-		}
+		else // app id changed at runtime
+			windows.insert(windows.begin(), window);
 	}
 }
 
@@ -101,7 +99,7 @@ void WindowManager::on_close_window(const PHLWINDOW &window)
 		return;
 	auto &windows = it->second.windows;
 	window_switcher.on_close_window(window);
-	std::ranges::remove(windows, window);
+	llvm::erase(windows, window);
 	if (windows.empty()) {
 		app_switcher.on_close_app(window->m_class);
 		app_id_to_stuff_map.erase(window->m_class);
@@ -126,7 +124,7 @@ ActionResult WindowManager::focus_or_exec(const char *app_id, const char *comman
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
-		std::ranges::remove(it->second.windows, window_ref);
+		llvm::erase(it->second.windows, window_ref);
 		return actionError(
 		    "Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
@@ -152,7 +150,7 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	auto window_ref = it->second.windows.front();
 	auto window     = window_ref.lock();
 	if (!window) {
-		std::ranges::remove(it->second.windows, window_ref);
+		llvm::erase(it->second.windows, window_ref);
 		return actionError(
 		    "Window not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
@@ -194,7 +192,7 @@ void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &i
 			// mod released
 			// both of them cannot be active at the same time by design
 			if (window_switcher.is_active())
-				window_switcher.focus_selected();
+				window_switcher.deactivate();
 			else if (app_switcher.is_active())
 				app_switcher.focus_selected();
 		}
@@ -230,10 +228,10 @@ void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &i
 void WindowManager::handle_app_switching(bool backwards)
 {
 	if (window_switcher.is_active())
-		window_switcher.abort();
+		window_switcher.deactivate();
 	if (!app_switcher.is_active())
-		app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map);
-	app_switcher.move(backwards);
+		app_switcher.activate(&app_id_focus_history, &app_id_to_stuff_map);
+	app_switcher.highlight_next(backwards);
 }
 
 void WindowManager::handle_window_switching(bool backwards)
@@ -247,9 +245,9 @@ void WindowManager::handle_window_switching(bool backwards)
 		auto it = app_id_to_stuff_map.find(last_window->m_class);
 		if (it == app_id_to_stuff_map.end())
 			return;
-		window_switcher.seed(&it->second.windows);
+		window_switcher.activate(&it->second.windows);
 	}
-	window_switcher.move(backwards);
+	window_switcher.focus_next(backwards);
 }
 
 void WindowManager::render_app_switcher(eRenderStage stage)
@@ -258,34 +256,7 @@ void WindowManager::render_app_switcher(eRenderStage stage)
 		g_pHyprRenderer->m_renderPass.add(makeUnique<AppSwitcherPassElement>(&app_switcher));
 }
 
-ActionResult WindowManager::dump_debug_info()
-{
-	return {};
-/*	log<TRACE>
-	    "Compositor windows: {}",
-	    g_pCompositor->m_windows
-	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log<TRACE>
-	    "Compositor focus history: {}",
-	    Desktop::History::windowTracker()->fullHistory()
-	        | std::views::transform([](auto &window) { return as_str(window); }));
-	log<TRACE>("WM:");
-	app_switcher.show(&app_id_focus_history, &app_id_to_stuff_map); // to load icon textures
-	// this is terrible since it causes the focused app to be raised but
-	// ::hide() is a private method (and rightfully so) and this is a debugging
-	// method so this should not be a big deal
-	app_switcher.focus_selected();
-	for (const auto &app_id : app_id_focus_history) {
-		auto &[windows, app_info] = app_id_to_stuff_map.at(app_id);
-		std::string app_name      = "<future>";
-		if (auto app_render_data = std::get_if<AppRenderData>(&app_info))
-			app_name = app_render_data->app_name;
-		log<TRACE>("{:<4}{}: {}", "", app_id, app_name);
-		for (const auto &window : windows)
-			log<TRACE>("{:<8}{}", "", as_str(window));
-	}
-	return {};*/
-}
+ActionResult WindowManager::dump_debug_info() { return {}; }
 
 std::span<PHLWINDOWREF> WindowManager::get_app_switcher_current()
 {
