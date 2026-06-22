@@ -125,7 +125,7 @@ static CFunctionHook *close_window_hook = nullptr;
 using orig_close_window = ActionResult (*)(std::optional<PHLWINDOW>);
 
 // ReSharper disable once CppPassValueParameterByConstReference
-ActionResult close_window(std::optional<PHLWINDOW> w, WindowManager &window_manager)
+ActionResult close_window(std::optional<PHLWINDOW> w, WindowManager &)
 {
 	// TODO: If I just close all windows of the currently highlighted app in the
 	// app switcher in a for loop, close events are not emitted.
@@ -143,12 +143,18 @@ void register_hooks(void *handle)
 	hooks::close_window_hook->hook();
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-type-c-linkage"
+// Return type is as per Hyprland documentation.
+extern "C" __attribute__((visibility("default"))) std::string pluginAPIVersion() { return "0.1"; }
+
 // Return type is equivalent to the return type mentioned in Hyprland
 // documentation (which is of the form `using identifier = (anonymous struct)`
 // instead of `struct identifier {}` for some reason).
 extern "C" __attribute__((visibility("default")))
 std::tuple<std::string, std::string, std::string, std::string>
 pluginInit(void *handle)
+#pragma GCC diagnostic pop
 {
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
@@ -219,6 +225,3 @@ pluginInit(void *handle)
 
 extern "C" __attribute__((visibility("default"))) void pluginExit()
 { g_pHyprRenderer->m_renderPass.removeAllOfType(AppSwitcherPassElement::pass_name); }
-
-// Return type is as per Hyprland documentation.
-extern "C" __attribute__((visibility("default"))) std::string pluginAPIVersion() { return "0.1"; }
