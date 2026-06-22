@@ -51,6 +51,8 @@ public:
 
 	ActionResult dump_debug_info();
 
+	[[nodiscard]] bool is_app_switcher_active() const;
+
 private:
 	void handle_window_switching(bool backwards);
 	void handle_app_switching(bool backwards);

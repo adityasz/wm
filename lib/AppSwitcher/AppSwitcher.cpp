@@ -34,6 +34,11 @@ void AppSwitcher::activate(
     absl::flat_hash_map<const char *, AppStuff> *app_stuff_map
 )
 {
+	if (app_id_focus_history->empty()) {
+		log<LogLevel::DEBUG, "AppSwitcher: no apps to switch, refusing to activate">();
+		return;
+	}
+
 	first_tab_press = std::chrono::system_clock::now();
 
 	active = true;
@@ -50,7 +55,7 @@ void AppSwitcher::activate(
 	);
 	wl_event_source_timer_update(timer, 100);
 
-	log<LogLevel::DEBUG, "show: {}">(*app_id_focus_history);
+	log<LogLevel::TRACE, "show: {}">(*app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
@@ -60,9 +65,6 @@ void AppSwitcher::activate(
 
 void AppSwitcher::highlight_next(bool backwards)
 {
-	if (app_id_focus_history->empty())
-		return;
-
 	if (backwards) {
 		if (idx)
 			idx--;
@@ -88,8 +90,6 @@ void AppSwitcher::focus_selected()
 	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
 	);
 
-	if (app_id_focus_history->empty())
-		return;
 	focus_and_raise_window(app_stuff_map->at((*app_id_focus_history)[idx]).windows.front().lock());
 
 	deactivate();
@@ -97,25 +97,26 @@ void AppSwitcher::focus_selected()
 
 void AppSwitcher::deactivate()
 {
-	if (visible) {
-		wl_event_source_remove(timer);
-		timer = nullptr;
-	}
+	wl_event_source_remove(timer);
+	timer   = nullptr;
 	active  = false;
 	visible = false;
 }
 
-void AppSwitcher::on_close_app(std::string_view closing_app_id)
+void AppSwitcher::on_close_app(const char *closing_app_id)
 {
 	if (!active)
 		return;
 
-	if (app_id_focus_history->empty())
+	// no app will be left after this is closed, so deactivate
+	if (app_id_focus_history->size() == 1)
 		return deactivate();
 
 	for (const auto &[i, app_id] : *app_id_focus_history | std::views::enumerate) {
 		if (app_id == closing_app_id) {
-			if (idx != 0 && idx >= i)
+			if (idx == i && static_cast<size_t>(idx) == app_id_focus_history->size() - 1)
+				idx = 0;
+			else if (idx > i)
 				idx--;
 			return;
 		}
@@ -140,16 +141,11 @@ std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 
 void AppSwitcher::render()
 {
-	// LOG_TRACE("{}", "");
-
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
 		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return;
 	}
-
-	if (app_id_focus_history->empty())
-		return;
 
 	if (!visible) {
 		if (std::chrono::system_clock::now() - first_tab_press < 100ms)
@@ -282,10 +278,15 @@ void AppSwitcher::reset_config(const AppSwitcherConfig &config)
 	icon_size = config.icon_size->value();
 	icon_sep  = config.icon_sep->value();
 
-	font_height =
-	    font_size
-	        ? g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family)->m_size.y
-	        : 0;
+	font_height = 0;
+	if (font_size) {
+		if (auto texture =
+		        g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family)) {
+			font_height = texture->m_size.y;
+		} else {
+			log<LogLevel::CRIT, "could not create font texture; is {} a valid font?">(font_family);
+		}
+	}
 }
 
 void AppSwitcher::load_icon_textures() const

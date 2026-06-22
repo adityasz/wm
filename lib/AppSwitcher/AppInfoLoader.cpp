@@ -41,9 +41,13 @@ void AppInfoLoader::reset_config(const AppInfoLoaderConfig &config)
 {
 	icon_size = static_cast<uint16_t>(config.icon_size->value());
 
+	for (auto &theme : themes)
+		delete[] theme;
+	themes.clear();
 	themes.reserve(2); // people would usually have only one theme
+	auto theme_str = config.theme->value();
 	for (auto theme :
-	     std::string_view(config.theme->value())
+	     std::string_view(theme_str)
 	         | std::views::split(std::string_view(","))
 	         | std::views::transform([](auto s) {
 		           auto is_space = [](unsigned char c) { return std::isspace(c); };

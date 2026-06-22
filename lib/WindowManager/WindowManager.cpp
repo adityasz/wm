@@ -59,6 +59,11 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 		it_new->second.windows.push_back(window);
 		it_new->second.app_info = app_info_loader.get_app_info(app_id, window->m_initialClass);
 		app_id_focus_history.push_back(app_id);
+		if (window_switcher.is_active()) {
+			window_switcher.update_app_windows(
+			    &app_id_to_stuff_map.find(window_switcher.current_app_id())->second.windows
+			);
+		}
 	} else if (
 	    auto &windows = app_id_to_stuff_map.find(app_id)->second.windows;
 	    !std::ranges::contains(windows, window)
@@ -70,8 +75,8 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 
 void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason)
 {
-	// active event can be emitted after close event.
-	// https://github.com/hyprwm/Hyprland/blob/c91db4605538f0552192b44bd9afe1ccb62f1636/src/desktop/view/Window.cpp#L2437
+	// active event can be emitted after close event in 0.55.4:
+	// https://github.com/hyprwm/Hyprland/blob/v0.55.4/src/desktop/view/Window.cpp#L2437
 	// focus reason is "other", and I don't expect this to be the only place
 	// where this reason is used; so, check if the window is mapped instead:
 	if (!window || !window->m_isMapped)
@@ -92,7 +97,7 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 		std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
 		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end())
 			std::rotate(windows.begin(), window_it, window_it + 1);
-		else // app id changed at runtime
+		else // active event emitted before open event, which does happen in 0.55.4
 			windows.insert(windows.begin(), window);
 	}
 }
@@ -123,7 +128,7 @@ ActionResult WindowManager::focus_or_exec(const char *app_id, const char *comman
 		if (!Config::Supplementary::executor()->spawn(command))
 			return actionError(
 			    std::format("Failed to spawn {}", command),
-			    eActionErrorLevel::INFO,
+			    eActionErrorLevel::ERROR,
 			    eActionErrorCode::EXECUTION_FAILED
 			);
 		return {};
@@ -139,7 +144,7 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 		if (!Config::Supplementary::executor()->spawn(command))
 			return actionError(
 			    std::format("Failed to spawn {}", command),
-			    eActionErrorLevel::INFO,
+			    eActionErrorLevel::ERROR,
 			    eActionErrorCode::EXECUTION_FAILED
 			);
 		return {};
@@ -151,8 +156,13 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 		    "Monitor not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
 		);
 	}
-	if (auto active_workspace = monitor->m_activeWorkspace;
+	if (auto active_workspace = monitor->m_activeWorkspace; // some checks may be redundant
 	    window->m_workspace != active_workspace) {
+		if (!window->m_workspace || !active_workspace) {
+			return actionError(
+			    "Some workspace is null", eActionErrorLevel::ERROR, eActionErrorCode::INVALID_STATE
+			);
+		}
 		log<LogLevel::TRACE, "moving window '{}' from workspace '{}' to the active workspace '{}'">(
 		    window.get(), window->m_workspace->m_name, active_workspace->m_name
 		);
@@ -218,7 +228,8 @@ void WindowManager::handle_app_switching(bool backwards)
 		window_switcher.deactivate();
 	if (!app_switcher.is_active())
 		app_switcher.activate(&app_id_focus_history, &app_id_to_stuff_map);
-	app_switcher.highlight_next(backwards);
+	if (app_switcher.is_active())
+		app_switcher.highlight_next(backwards);
 }
 
 void WindowManager::handle_window_switching(bool backwards)
@@ -232,9 +243,10 @@ void WindowManager::handle_window_switching(bool backwards)
 		const char *app_id = app_id_pool.find(last_window->m_initialClass);
 		if (!app_id)
 			return;
-		window_switcher.activate(&app_id_to_stuff_map.find(app_id)->second.windows);
+		window_switcher.activate(app_id, &app_id_to_stuff_map.find(app_id)->second.windows);
 	}
-	window_switcher.focus_next(backwards);
+	if (window_switcher.is_active())
+		window_switcher.focus_next(backwards);
 }
 
 void WindowManager::render_app_switcher(eRenderStage stage)
@@ -244,3 +256,5 @@ void WindowManager::render_app_switcher(eRenderStage stage)
 }
 
 ActionResult WindowManager::dump_debug_info() { return {}; }
+
+bool WindowManager::is_app_switcher_active() const { return app_switcher.is_active(); }

@@ -94,7 +94,7 @@ public:
 	void               focus_selected();
 	void               deactivate();
 	[[nodiscard]] bool is_active() const;
-	void               on_close_app(std::string_view closing_app_id);
+	void               on_close_app(const char *closing_app_id);
 
 private:
 	void                                              load_icon_textures() const;

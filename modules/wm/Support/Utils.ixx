@@ -8,6 +8,8 @@ import hyprland.plugins;
 import hyprland.protocols;
 import hyprutils.memory;
 
+import wm.Support.ComptimeString;
+
 using Hyprutils::Memory::CSharedPointer;
 using Hyprutils::Memory::makeShared;
 
@@ -19,20 +21,28 @@ void focus_and_raise_window(
     bool                                      preserveFocusHistory = false
 );
 
-[[noreturn]] void init_die(void *handle, const auto &msg);
-
-template <typename T, typename U>
-CSharedPointer<T> add_config(void *handle, std::string_view key, const char *desc, U value)
+template <ComptimeString FmtStr, typename... Args>
+[[noreturn]] void init_die(void *handle, Args &&...fmt_args)
 {
-	auto name       = std::format("plugin:wm:{}", key);
-	auto config_val = makeShared<T>(name.c_str(), desc, value);
-	if (HyprlandAPI::addConfigValueV2(handle, config_val))
-		return config_val;
-	init_die(handle, std::format("Failed to add config value for plugin:wm:{}", key));
+	static constexpr auto fmt_str = ComptimeString{"[wm] Error: Initialization failed: "} + FmtStr;
+	auto                  err_msg = std::format(fmt_str.str, std::forward<Args>(fmt_args)...);
+	HyprlandAPI::addNotification(handle, err_msg, CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
+	throw std::runtime_error(err_msg);
 }
 
-template <typename T, typename U>
-CSharedPointer<T> add_config(void *handle, std::string_view key, U value)
-{ return add_config<T>(handle, key, "", value); }
+template <typename T, ComptimeString Key, typename U>
+CSharedPointer<T> add_config(void *handle, const char *desc, U value)
+{
+	static constexpr auto name       = ComptimeString{"plugin:wm:"} + Key;
+	auto                  config_val = makeShared<T>(name.str, desc, value);
+	if (HyprlandAPI::addConfigValueV2(handle, config_val))
+		return config_val;
+	static constexpr auto err = ComptimeString{"Failed to add config value for "} + name;
+	init_die<err>(handle);
+}
+
+template <typename T, ComptimeString Key, typename U>
+CSharedPointer<T> add_config(void *handle, U value)
+{ return add_config<T, Key>(handle, "", value); }
 
 } // namespace wm

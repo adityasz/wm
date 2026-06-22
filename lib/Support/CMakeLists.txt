@@ -2,6 +2,7 @@ wm_add_library(Support
 	Utils.cpp
 	StringPool.cpp
 	MODULES
+        ComptimeString.ixx
         Support.ixx
         Logging.ixx
         Utils.ixx

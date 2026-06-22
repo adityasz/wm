@@ -2,6 +2,7 @@ export module wm.Support;
 
 import std;
 
+export import wm.Support.ComptimeString;
 export import wm.Support.Logging;
 export import wm.Support.Utils;
 export import wm.Support.StringPool;

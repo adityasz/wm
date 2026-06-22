@@ -1,7 +1,6 @@
 module;
 
 #include <cassert>
-#include <llvm/ADT/SmallVector.h>
 
 module wm.WindowSwitcher;
 
@@ -17,17 +16,22 @@ using namespace wm;
 
 WindowSwitcher::WindowSwitcher() : app_windows(nullptr), idx(0), active(false) {}
 
-void WindowSwitcher::activate(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
+void WindowSwitcher::activate(const char *app_id, llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 {
+	if (app_windows->size() == 1)
+		return;
 	idx               = 0;
 	active            = true;
+	this->app_id      = app_id;
 	this->app_windows = app_windows;
 }
 
 void WindowSwitcher::focus_next(bool backwards)
 {
-	if (app_windows->empty())
+	if (app_windows->empty()) {
+		log<LogLevel::DEBUG, "WindowSwitcher: no windows to switch, refusing to activate">();
 		return;
+	}
 
 	if (backwards) {
 		if (idx)
@@ -52,14 +56,15 @@ void WindowSwitcher::deactivate()
 	active = false;
 }
 
+const char *WindowSwitcher::current_app_id() const { return app_id; }
+
+void WindowSwitcher::update_app_windows(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
+{ this->app_windows = app_windows; }
+
 void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 {
 	if (!active)
 		return;
-
-	// all windows of this app will be closed
-	if (app_windows->size() == 1)
-		return deactivate();
 
 	for (const auto &[i, window] : *app_windows | std::views::enumerate) {
 		if (window == closing_window) {
@@ -73,6 +78,9 @@ void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 			} else if (idx > i) {
 				idx--;
 			}
+			// only one window will remain after this one is closed
+			if (app_windows->size() == 2)
+				return deactivate();
 			break;
 		}
 	}

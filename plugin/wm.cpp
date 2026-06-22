@@ -125,10 +125,18 @@ static CFunctionHook *close_window_hook = nullptr;
 using orig_close_window = ActionResult (*)(std::optional<PHLWINDOW>);
 
 // ReSharper disable once CppPassValueParameterByConstReference
-ActionResult close_window(std::optional<PHLWINDOW> w, WindowManager &)
+ActionResult close_window(std::optional<PHLWINDOW> w)
 {
 	// TODO: If I just close all windows of the currently highlighted app in the
 	// app switcher in a for loop, close events are not emitted.
+	if (window_manager->is_app_switcher_active()) {
+		return Config::Actions::actionError(
+		    "AppSwitcher active; ignoring closeWindow",
+		    Config::Actions::eActionErrorLevel::INFO,
+		    Config::Actions::eActionErrorCode::EXECUTION_FAILED
+		);
+	}
+
 	return (reinterpret_cast<orig_close_window>(close_window_hook->m_original))(w);
 }
 
@@ -159,54 +167,52 @@ pluginInit(void *handle)
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
 	if (std::strcmp(compositor_hash, client_hash)) {
-		init_die(
-		    handle,
-		    std::format(
-		        "Version mismatch (headers ver = {} != {} = running ver)",
-		        compositor_hash,
-		        client_hash
-		    )
+		init_die<"Version mismatch (headers ver = {} != {} = running ver)">(
+		    handle, compositor_hash, client_hash
 		);
 	}
 
 	if (Config::mgr()->type() != Config::CONFIG_LUA)
-		init_die(handle, "legacy config is not supported");
+		init_die<"legacy config is not supported">(handle);
 
-	auto icon_size_config = add_config<CFloatValue>(handle, "app_switcher:icons:size", 120);
+	auto icon_size_config = add_config<CFloatValue, "app_switcher:icons:size">(handle, 120);
 	WindowManagerConfig config{
 	    .app_switcher =
 	        AppSwitcherConfig{
-	            .container_background_color = add_config<CColorValue>(
-	                handle, "app_switcher:container:background_color", 0x11'ff'ff'ff
-	            ),
-	            .container_border_color = add_config<CColorValue>(
-	                handle, "app_switcher:container:border_color", 0x11'80'80'80
-	            ),
+	            .container_background_color =
+	                add_config<CColorValue, "app_switcher:container:background_color">(
+	                    handle, 0x11'ff'ff'ff
+	                ),
+	            .container_border_color =
+	                add_config<CColorValue, "app_switcher:container:border_color">(
+	                    handle, 0x11'80'80'80
+	                ),
 	            .container_border_width =
-	                add_config<CFloatValue>(handle, "app_switcher:container:border_width", 1),
+	                add_config<CFloatValue, "app_switcher:container:border_width">(handle, 1),
 	            .container_padding =
-	                add_config<CFloatValue>(handle, "app_switcher:container:padding", 20),
+	                add_config<CFloatValue, "app_switcher:container:padding">(handle, 20),
 	            .container_radius =
-	                add_config<CIntValue>(handle, "app_switcher:container:radius", 35),
-	            .selection_background_color = add_config<CColorValue>(
-	                handle, "app_switcher:selection:background_color", 0x11'00'00'00
-	            ),
+	                add_config<CIntValue, "app_switcher:container:radius">(handle, 35),
+	            .selection_background_color =
+	                add_config<CColorValue, "app_switcher:selection:background_color">(
+	                    handle, 0x11'00'00'00
+	                ),
 	            .selection_padding =
-	                add_config<CFloatValue>(handle, "app_switcher:selection:padding", 10),
+	                add_config<CFloatValue, "app_switcher:selection:padding">(handle, 10),
 	            .selection_radius =
-	                add_config<CIntValue>(handle, "app_switcher:selection:radius", 30),
+	                add_config<CIntValue, "app_switcher:selection:radius">(handle, 30),
 	            .font_family =
-	                add_config<CStringValue>(handle, "app_switcher:label:font_family", "Inter"),
+	                add_config<CStringValue, "app_switcher:label:font_family">(handle, "Inter"),
 	            .font_color =
-	                add_config<CColorValue>(handle, "app_switcher:label:font_color", 0xff'ff'ff),
-	            .font_size = add_config<CIntValue>(handle, "app_switcher:label:font_size", 0),
-	            .label_sep = add_config<CFloatValue>(handle, "app_switcher:label:separation", 0),
+	                add_config<CColorValue, "app_switcher:label:font_color">(handle, 0xff'ff'ff),
+	            .font_size = add_config<CIntValue, "app_switcher:label:font_size">(handle, 0),
+	            .label_sep = add_config<CFloatValue, "app_switcher:label:separation">(handle, 0),
 	            .icon_size = icon_size_config,
-	            .icon_sep  = add_config<CFloatValue>(handle, "app_switcher:icons:separation", 40)
+	            .icon_sep  = add_config<CFloatValue, "app_switcher:icons:separation">(handle, 40)
 	        },
 	    .app_info_loader = AppInfoLoaderConfig{
 	        .icon_size = icon_size_config,
-	        .theme     = add_config<CStringValue>(handle, "app_switcher:icons:theme", "")
+	        .theme     = add_config<CStringValue, "app_switcher:icons:theme">(handle, "")
 	    }
 	};
 
@@ -215,7 +221,7 @@ pluginInit(void *handle)
 	window_manager.emplace(config);
 
 	if (!register_functions(handle))
-		init_die(handle, "failed to register functions");
+		init_die<"failed to register functions">(handle);
 
 	static auto listeners = register_listeners(*window_manager);
 	register_hooks(handle);

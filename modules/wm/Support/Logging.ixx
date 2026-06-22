@@ -7,6 +7,8 @@ import hyprland.desktop;
 import hyprland.helpers;
 import hyprutils.cli;
 
+import wm.Support.ComptimeString;
+
 using std::size_t, std::uint8_t, std::uintptr_t;
 using Desktop::View::CWindow;
 
@@ -14,34 +16,6 @@ template <typename T, typename... Types>
 concept IsOneOf = (std::same_as<T, Types> || ...);
 
 export namespace wm {
-
-template <std::size_t N>
-struct ComptimeString {
-	char str[N]{};
-
-	consteval ComptimeString() = default;
-
-	consteval ComptimeString(const char (&arr)[N])
-	{
-		for (size_t i = 0; i < N; ++i)
-			str[i] = arr[i];
-	}
-
-	template <std::size_t M>
-	consteval auto operator+(const ComptimeString<M> &other) const
-	{
-		ComptimeString<N + M - 1> res{};
-		for (size_t i = 0; i < N - 1; ++i)
-			res.str[i] = str[i];
-		for (size_t i = 0; i < M; ++i)
-			res.str[i + N - 1] = other.str[i];
-		return res;
-	}
-
-	template <std::size_t M>
-	consteval auto operator+(const char (&arr)[M]) const
-	{ return *this + ComptimeString<M>(arr); }
-};
 
 enum class LogLevel : uint8_t {
 	TRACE = 0,

@@ -14,17 +14,21 @@ export namespace wm {
 class WindowSwitcher {
 	// WindowManager::on_touch_window does not modify this when active = true
 	llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows;
+	const char                          *app_id;
 	int                                  idx;
 	bool                                 active;
 
 public:
 	WindowSwitcher();
 
-	void               activate(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows);
-	void               focus_next(bool backwards);
-	void               deactivate();
-	[[nodiscard]] bool is_active() const;
-	void               on_close_window(const PHLWINDOW &closing_window);
+	void activate(const char *app_id, llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows);
+	void focus_next(bool backwards);
+	void deactivate();
+	/// Pointers to keys in absl::flat_hash_map are not stable, so this is needed.
+	void update_app_windows(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows);
+	void on_close_window(const PHLWINDOW &closing_window);
+	[[nodiscard]] bool        is_active() const;
+	[[nodiscard]] const char *current_app_id() const;
 
 private:
 	void focus_and_raise_window(size_t idx);
