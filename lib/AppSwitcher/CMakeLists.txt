@@ -10,7 +10,7 @@ pkg_check_modules(AppInfoDeps REQUIRED IMPORTED_TARGET
 )
 
 set(NKUTILS_SOURCE_DIR ${CMAKE_SOURCE_DIR}/external/libnkutils)
-add_library(nkutils-icons STATIC
+add_library(nkutils-icons OBJECT
     ${NKUTILS_SOURCE_DIR}/core/src/enum.c
     ${NKUTILS_SOURCE_DIR}/core/src/format-string.c
     ${NKUTILS_SOURCE_DIR}/core/src/colour.c
