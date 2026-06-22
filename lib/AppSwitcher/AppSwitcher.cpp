@@ -50,7 +50,7 @@ void AppSwitcher::activate(
 	);
 	wl_event_source_timer_update(timer, 100);
 
-	log<LogLevel::DEBUG>("show: {}", *app_id_focus_history);
+	log<LogLevel::DEBUG, "show: {}">(*app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
@@ -129,7 +129,7 @@ std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 	auto total_height = 2 * container_padding + icon_size + label_sep + font_height;
 	auto monitor      = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log<LogLevel::DEBUG>("monitor {} is null", as_str(Desktop::focusState()->monitor()));
+		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return std::unexpected{std::monostate{}};
 	}
 	auto center = monitor->m_size * monitor->m_scale / 2;
@@ -144,7 +144,7 @@ void AppSwitcher::render()
 
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) {
-		log<LogLevel::DEBUG>("monitor {} is null", as_str(Desktop::focusState()->monitor()));
+		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return;
 	}
 
@@ -213,7 +213,7 @@ void AppSwitcher::render()
 		auto &[_, app_stuff] = *app_stuff_map->find(app_id); // must exist
 		auto data_ptr        = std::get_if<AppRenderData>(&app_stuff.app_info);
 		if (!data_ptr) {
-			log<LogLevel::DEBUG>("AppSwitcher: data not available for class={}", app_id);
+			log<LogLevel::DEBUG, "AppSwitcher: data not available for class={}">(app_id);
 			icon_x     += icon_size + icon_sep;
 			text_box.x += icon_size + icon_sep;
 			continue;
@@ -228,7 +228,7 @@ void AppSwitcher::render()
 			tex_data.round    = 0;
 			g_pHyprOpenGL->renderTexture(icon_texture, icon_box, tex_data);
 		} else {
-			log<LogLevel::DEBUG>("AppSwitcher: icon not available for {}", app_name);
+			log<LogLevel::DEBUG, "AppSwitcher: icon not available for {}">(app_name);
 		}
 
 		icon_box.x += icon_size + icon_sep;

@@ -87,14 +87,16 @@ static int dsp_move_or_exec(lua_State *L)
 	);
 }
 
-template <lua_CFunction F>
-static int luaDispatchFactory(lua_State *L, const char *name)
+template <lua_CFunction F, ComptimeString Name>
+static int luaDispatchFactory(lua_State *L)
 {
 	// Ideally, the string should be allocated at compile time. However,
 	// comptime string construction will take more lines of code than the code
 	// duplication it is supposed to prevent.
-	if (!lua_istable(L, 1))
-		return Config::Lua::configError(L, "{}: expected a table {{class=, cmd=}}", name);
+	if (!lua_istable(L, 1)) {
+		static constexpr auto err = Name + ": expected a table {{class=, cmd=}}";
+		return Config::Lua::configError(L, err.str);
+	}
 	lua_getfield(L, 1, "class");
 	lua_getfield(L, 1, "cmd");
 	lua_pushcclosure(L, F, 2);
@@ -108,11 +110,11 @@ bool register_functions(void *handle)
 	           "wm",
 	           "focus_or_exec",
 	           [](lua_State *L) {
-		           return luaDispatchFactory<dsp_focus_or_exec>(L, "wm.focus_or_exec");
+		           return luaDispatchFactory<dsp_focus_or_exec, "wm.focus_or_exec">(L);
 	           }
 	       )
 	       && HyprlandAPI::addLuaFunction(handle, "wm", "move_or_exec", [](lua_State *L) {
-		          return luaDispatchFactory<dsp_move_or_exec>(L, "wm.move_or_exec");
+		          return luaDispatchFactory<dsp_move_or_exec, "wm.move_or_exec">(L);
 	          });
 }
 

@@ -71,7 +71,7 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 	if (!window)
 		return;
 	if (window_switcher.is_active()) {
-		log<LogLevel::DEBUG>("window switcher is active, ignoring touch");
+		log<LogLevel::DEBUG, "window switcher is active, ignoring touch">();
 		return;
 	}
 	const char *app_id = app_id_pool.get(window->m_initialClass);
@@ -147,17 +147,14 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	}
 	if (auto active_workspace = monitor->m_activeWorkspace;
 	    window->m_workspace != active_workspace) {
-		log<LogLevel::TRACE>(
-		    "moving {} from workspace '{}' to the active workspace '{}'",
-		    window,
-		    window->m_workspace->m_name,
-		    active_workspace->m_name
+		log<LogLevel::TRACE, "moving window '{}' from workspace '{}' to the active workspace '{}'">(
+		    window.get(), window->m_workspace->m_name, active_workspace->m_name
 		);
 		g_pCompositor->moveWindowToWorkspaceSafe(window, active_workspace);
 	} else {
 		g_pCompositor->warpCursorTo(window->middle());
 	}
-	log<LogLevel::TRACE>("focusing {}", as_str(window));
+	log<LogLevel::TRACE, "focusing {}">(window.get());
 	focus_and_raise_window(window);
 	return {};
 }

@@ -168,7 +168,7 @@ AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initi
 {
 	auto desktop_file_path = get_desktop_file_path(app_id, initial_app_id);
 	if (desktop_file_path.empty()) {
-		log<LogLevel::DEBUG>("desktop file not found for {}/{}", app_id, initial_app_id);
+		log<LogLevel::DEBUG, "desktop file not found for {}/{}">(app_id, initial_app_id);
 		return std::make_unique<AppInfo>(app_id, Image{});
 	}
 
