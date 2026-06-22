@@ -30,8 +30,8 @@ AppSwitcher::AppSwitcher(const AppSwitcherConfig &config) :
 bool AppSwitcher::is_active() const { return active; }
 
 void AppSwitcher::activate(
-    std::vector<std::string>                  *app_id_focus_history,
-    std::unordered_map<std::string, AppStuff> *app_stuff_map
+    std::vector<const char *>                   *app_id_focus_history,
+    absl::flat_hash_map<const char *, AppStuff> *app_stuff_map
 )
 {
 	first_tab_press = std::chrono::system_clock::now();
@@ -81,8 +81,6 @@ void AppSwitcher::highlight_next(bool backwards)
 	if (auto monitor = Desktop::focusState()->monitor())
 		g_pHyprRenderer->damageMonitor(monitor);
 }
-
-std::string AppSwitcher::get_current_selection() const { return (*app_id_focus_history)[idx]; }
 
 void AppSwitcher::focus_selected()
 {

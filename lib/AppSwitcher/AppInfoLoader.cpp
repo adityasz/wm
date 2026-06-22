@@ -19,7 +19,6 @@ import hyprland.config;
 import wm.Support;
 
 using namespace wm;
-using Log::INFO;
 
 const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
 const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
@@ -208,7 +207,7 @@ AppInfoLoader::load_app_info(const std::string &app_id, const std::string &initi
 		return std::make_unique<AppInfo>(app_name, read_image(std::string(icon_path), icon_size));
 	}
 
-	return std::make_unique<AppInfo>(app_name, Image{});
+	return std::make_unique<AppInfo>(std::move(app_name), Image{});
 }
 
 void AppInfoLoader::worker_thread()
@@ -234,7 +233,7 @@ void AppInfoLoader::worker_thread()
 }
 
 std::future<AppInfo *>
-AppInfoLoader::get_app_info(const std::string &app_id, const std::string &initial_app_id)
+AppInfoLoader::get_app_info(std::string_view app_id, std::string_view initial_app_id)
 {
 	{
 		std::lock_guard lk(mtx);
@@ -256,13 +255,13 @@ AppInfoLoader::get_app_info(const std::string &app_id, const std::string &initia
 	auto                    fut = promise.get_future();
 	{
 		std::lock_guard lk(mtx);
-		task_queue.emplace(app_id, initial_app_id, std::move(promise));
+		task_queue.emplace(std::string{app_id}, std::string{initial_app_id}, std::move(promise));
 	}
 	cv.notify_one();
 	return fut;
 }
 
-void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
+void AppInfoLoader::prune(std::span<const char *> app_ids_to_keep)
 {
 	max_entries = std::max(20uz, app_ids_to_keep.size() + app_ids_to_keep.size() / 4);
 	// race conditions do not matter since this is heuristics based and the size
@@ -277,13 +276,13 @@ void AppInfoLoader::prune(std::span<std::string> app_ids_to_keep)
 		if (cache.size() == std::max(20uz, app_ids_to_keep.size()))
 			break;
 		if (!std::ranges::contains(app_ids_to_keep, it->first))
-			it = cache.erase(it);
+			cache.erase(it++);
 		else
 			++it;
 	}
 
 	if (cache.size() < size_before_pruning && cache.size() <= max_entries) {
-		std::unordered_map new_map(
+		absl::flat_hash_map<std::string, std::unique_ptr<AppInfo>> new_map(
 		    std::make_move_iterator(cache.begin()), std::make_move_iterator(cache.end())
 		);
 		cache.swap(new_map);

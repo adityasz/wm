@@ -6,6 +6,8 @@ import hyprland.config;
 import hyprland.devices;
 import hyprland.desktop;
 import hyprland.event;
+import wm.Support;
+import absl;
 
 export import wm.AppSwitcher;
 export import wm.WindowSwitcher;
@@ -20,12 +22,13 @@ struct WindowManagerConfig {
 };
 
 class WindowManager {
-	std::vector<std::string>                  app_id_focus_history;
-	std::unordered_map<std::string, AppStuff> app_id_to_stuff_map;
-	WindowSwitcher                            window_switcher;
-	AppSwitcher                               app_switcher;
-	AppInfoLoader                             app_info_loader;
-	WindowManagerConfig                       config;
+	StringPool                                  app_id_pool;
+	std::vector<const char *>                   app_id_focus_history;
+	absl::flat_hash_map<const char *, AppStuff> app_id_to_stuff_map;
+	WindowSwitcher                              window_switcher;
+	AppSwitcher                                 app_switcher;
+	AppInfoLoader                               app_info_loader;
+	WindowManagerConfig                         config;
 
 public:
 	explicit WindowManager(const WindowManagerConfig &config);
@@ -47,8 +50,6 @@ public:
 	ActionResult move_or_exec(const char *app_id, const char *command);
 
 	ActionResult dump_debug_info();
-
-	[[nodiscard]] std::span<PHLWINDOWREF> get_app_switcher_current();
 
 private:
 	void handle_window_switching(bool backwards);

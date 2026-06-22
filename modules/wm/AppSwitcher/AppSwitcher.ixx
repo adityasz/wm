@@ -12,6 +12,7 @@ import hyprland.helpers;
 import hyprland.config;
 import hyprutils.math;
 import hyprutils.memory;
+import absl;
 
 export import wm.AppSwitcher.AppInfoLoader;
 export import wm.AppSwitcher.Image;
@@ -55,8 +56,8 @@ struct AppSwitcherConfig {
 };
 
 class AppSwitcher {
-	std::vector<std::string>                          *app_id_focus_history;
-	std::unordered_map<std::string, AppStuff>         *app_stuff_map;
+	std::vector<const char *>                         *app_id_focus_history;
+	absl::flat_hash_map<const char *, AppStuff>       *app_stuff_map;
 	std::chrono::time_point<std::chrono::system_clock> first_tab_press;
 	wl_event_source                                   *timer;
 
@@ -86,15 +87,14 @@ public:
 	void reset_config(const AppSwitcherConfig &config);
 
 	void activate(
-	    std::vector<std::string>                  *app_id_focus_history,
-	    std::unordered_map<std::string, AppStuff> *app_stuff_map
+	    std::vector<const char *>                   *app_id_focus_history,
+	    absl::flat_hash_map<const char *, AppStuff> *app_stuff_map
 	);
-	void                      highlight_next(bool backwards);
-	void                      focus_selected();
-	void                      deactivate();
-	[[nodiscard]] bool        is_active() const;
-	[[nodiscard]] std::string get_current_selection() const;
-	void                      on_close_app(std::string_view closing_app_id);
+	void               highlight_next(bool backwards);
+	void               focus_selected();
+	void               deactivate();
+	[[nodiscard]] bool is_active() const;
+	void               on_close_app(std::string_view closing_app_id);
 
 private:
 	void                                              load_icon_textures() const;

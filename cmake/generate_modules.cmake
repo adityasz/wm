@@ -101,3 +101,26 @@ wm_add_library(llvm_modules
     MODULES Support.ixx
     LINK_LIBS PUBLIC $<IF:$<CONFIG:Debug>,LLVM,${llvm_libs}>
 )
+
+pkg_check_modules(absl REQUIRED IMPORTED_TARGET absl_flat_hash_map absl_flat_hash_set absl_hash)
+pkg_get_variable(absl_INCLUDEDIR absl_flat_hash_map includedir)
+
+set(absl_headers
+    container/flat_hash_map.h
+    container/flat_hash_set.h
+    hash/hash.h
+)
+list(TRANSFORM absl_headers PREPEND "${absl_INCLUDEDIR}/absl/")
+cxxmgen("absl"
+    OUTPUT "${GENERATED_MODULES_DIR}/absl/absl.ixx"
+    HEADERS ${absl_headers}
+    RESTRICT_PATHS "${absl_INCLUDEDIR}/absl"
+    JOBS 1
+    CLANG_OPTS ${clang_opts} ${absl_CFLAGS}
+)
+
+wm_add_library(absl_modules
+    MODULES_DIR "${GENERATED_MODULES_DIR}/absl"
+    MODULES absl.ixx
+    LINK_LIBS PUBLIC PkgConfig::absl
+)

@@ -125,10 +125,8 @@ using orig_close_window = ActionResult (*)(std::optional<PHLWINDOW>);
 // ReSharper disable once CppPassValueParameterByConstReference
 ActionResult close_window(std::optional<PHLWINDOW> w, WindowManager &window_manager)
 {
-	if (auto windows = window_manager.get_app_switcher_current(); !windows.empty()) {
-		// TODO: If I just close them all in a for loop, close events are not emitted.
-		return {};
-	}
+	// TODO: If I just close all windows of the currently highlighted app in the
+	// app switcher in a for loop, close events are not emitted.
 	return (reinterpret_cast<orig_close_window>(close_window_hook->m_original))(w);
 }
 
