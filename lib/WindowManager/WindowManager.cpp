@@ -70,14 +70,18 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 
 void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason)
 {
-	if (!window)
+	// active event can be emitted after close event.
+	// https://github.com/hyprwm/Hyprland/blob/c91db4605538f0552192b44bd9afe1ccb62f1636/src/desktop/view/Window.cpp#L2437
+	// focus reason is "other", and I don't expect this to be the only place
+	// where this reason is used; so, check if the window is mapped instead:
+	if (!window || !window->m_isMapped)
 		return;
 	if (window_switcher.is_active()) {
 		log<LogLevel::TRACE, "window switcher is active, ignoring touch">();
 		return;
 	}
-	auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
-	if (inserted) {
+	auto [app_id, new_app] = app_id_pool.get(window->m_initialClass);
+	if (new_app) {
 		auto [it_new, _] = app_id_to_stuff_map.try_emplace(app_id);
 		it_new->second.windows.push_back(window);
 		it_new->second.app_info = app_info_loader.get_app_info(app_id, window->m_initialClass);

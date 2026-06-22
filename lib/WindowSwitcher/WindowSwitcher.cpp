@@ -1,6 +1,7 @@
 module;
 
 #include <cassert>
+#include <llvm/ADT/SmallVector.h>
 
 module wm.WindowSwitcher;
 
@@ -32,7 +33,7 @@ void WindowSwitcher::focus_next(bool backwards)
 		if (idx)
 			idx--;
 		else
-			idx = static_cast<int>(app_windows->size()) - 1;
+			idx = static_cast<int>(app_windows->size() - 1);
 	} else {
 		idx++;
 		if (idx == static_cast<int>(app_windows->size()))
@@ -41,7 +42,7 @@ void WindowSwitcher::focus_next(bool backwards)
 
 	assert((idx >= 0 && idx < static_cast<int>(app_windows->size())) && "idx out of bounds");
 
-	focus_window(idx);
+	focus_and_raise_window(idx);
 }
 
 void WindowSwitcher::deactivate()
@@ -62,10 +63,16 @@ void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 
 	for (const auto &[i, window] : *app_windows | std::views::enumerate) {
 		if (window == closing_window) {
-			if (idx == i)
-				focus_window(idx + 1);
-			else if (idx > i)
+			if (idx == i) {
+				if (static_cast<size_t>(idx) == app_windows->size() - 1) {
+					idx = 0;
+					focus_and_raise_window(idx);
+				} else {
+					focus_and_raise_window(idx + 1);
+				}
+			} else if (idx > i) {
 				idx--;
+			}
 			break;
 		}
 	}
@@ -73,5 +80,5 @@ void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 
 bool WindowSwitcher::is_active() const { return active; }
 
-void WindowSwitcher::focus_window(size_t idx)
-{ focus_and_raise_window((*app_windows)[idx].lock()); }
+void WindowSwitcher::focus_and_raise_window(size_t idx)
+{ return wm::focus_and_raise_window((*app_windows)[idx].lock()); }

@@ -42,4 +42,6 @@ const char *StringPool::find(std::string_view sv) const
 
 void StringPool::remove(std::string_view sv) { pool.erase(sv); }
 
+size_t StringPool::size() const { return pool.size(); }
+
 } // namespace wm

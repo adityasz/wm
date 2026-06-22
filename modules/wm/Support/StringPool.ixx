@@ -31,6 +31,7 @@ public:
 	std::pair<const char *, bool> get(std::string_view sv);
 	const char                   *find(std::string_view sv) const;
 	void                          remove(std::string_view sv);
+	[[nodiscard]] size_t          size() const;
 };
 
 } // namespace wm

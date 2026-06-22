@@ -27,6 +27,6 @@ public:
 	void               on_close_window(const PHLWINDOW &closing_window);
 
 private:
-	void focus_window(size_t idx);
+	void focus_and_raise_window(size_t idx);
 };
 } // namespace wm

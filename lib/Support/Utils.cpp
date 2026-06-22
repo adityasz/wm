@@ -1,6 +1,7 @@
 module;
 
 #include <cassert>
+#include <desktop/state/FocusState.hpp>
 
 module wm.Support.Utils;
 
@@ -37,7 +38,9 @@ void focus_and_raise_window(
 			g_pCompositor->setWindowFullscreenInternal(fullscreen_window, FSMODE_NONE);
 		}
 	}
-	Desktop::focusState()->fullWindowFocus(window, Desktop::FOCUS_REASON_OTHER, pSurface, false);
+	Desktop::focusState()->fullWindowFocus(
+	    window, Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW, pSurface, false
+	);
 	if (window->m_group)
 		window->m_group->setCurrent(window);
 	g_pCompositor->changeWindowZOrder(window, true);
