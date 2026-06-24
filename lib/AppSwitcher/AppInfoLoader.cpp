@@ -83,6 +83,10 @@ AppInfoLoader::~AppInfoLoader()
 		shutdown_flag = true;
 	}
 	cv.notify_all();
+
+	if (worker.joinable())
+		worker.join();
+
 	for (auto &theme : themes)
 		delete[] theme; // no-op when nullptr
 }
