@@ -6,19 +6,23 @@ import hyprland.config;
 import hyprland.devices;
 import hyprland.desktop;
 import hyprland.event;
+import hyprutils.memory;
 import wm.Support;
 import absl;
 
 export import wm.AppSwitcher;
 export import wm.WindowSwitcher;
 
-using Config::Actions::ActionResult;
+using Config::Actions::ActionResult, Config::Values::CFloatValue;
+using Hyprutils::Memory::CSharedPointer;
 
 export namespace wm {
 
 struct WindowManagerConfig {
 	AppSwitcherConfig   app_switcher;
 	AppInfoLoaderConfig app_info_loader;
+
+	WindowManagerConfig(void *handle, const CSharedPointer<CFloatValue> &icon_size_config);
 };
 
 class WindowManager {

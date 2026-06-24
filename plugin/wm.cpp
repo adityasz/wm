@@ -25,10 +25,7 @@ using namespace Bindings;
 }
 
 using Config::Actions::ActionResult;
-using Config::Values::CColorValue;
 using Config::Values::CFloatValue;
-using Config::Values::CIntValue;
-using Config::Values::CStringValue;
 using Hyprutils::Signal::CHyprSignalListener;
 
 using namespace wm;
@@ -88,11 +85,8 @@ static int dsp_move_or_exec(lua_State *L)
 }
 
 template <lua_CFunction F, ComptimeString Name>
-static int luaDispatchFactory(lua_State *L)
+static int lua_wm_dispatch_factory(lua_State *L)
 {
-	// Ideally, the string should be allocated at compile time. However,
-	// comptime string construction will take more lines of code than the code
-	// duplication it is supposed to prevent.
 	if (!lua_istable(L, 1)) {
 		static constexpr auto err = Name + ": expected a table {{class=, cmd=}}";
 		return Config::Lua::configError(L, err.str);
@@ -110,11 +104,11 @@ bool register_functions(void *handle)
 	           "wm",
 	           "focus_or_exec",
 	           [](lua_State *L) {
-		           return luaDispatchFactory<dsp_focus_or_exec, "wm.focus_or_exec">(L);
+		           return lua_wm_dispatch_factory<dsp_focus_or_exec, "wm.focus_or_exec">(L);
 	           }
 	       )
 	       && HyprlandAPI::addLuaFunction(handle, "wm", "move_or_exec", [](lua_State *L) {
-		          return luaDispatchFactory<dsp_move_or_exec, "wm.move_or_exec">(L);
+		          return lua_wm_dispatch_factory<dsp_move_or_exec, "wm.move_or_exec">(L);
 	          });
 }
 
@@ -154,14 +148,13 @@ void register_hooks(void *handle)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wreturn-type-c-linkage"
 // Return type is as per Hyprland documentation.
-extern "C" __attribute__((visibility("default"))) std::string pluginAPIVersion() { return "0.1"; }
+extern "C" [[gnu::visibility("default")]] std::string pluginAPIVersion() { return "0.1"; }
 
 // Return type is equivalent to the return type mentioned in Hyprland
 // documentation (which is of the form `using identifier = (anonymous struct)`
 // instead of `struct identifier {}` for some reason).
-extern "C" __attribute__((visibility("default")))
-std::tuple<std::string, std::string, std::string, std::string>
-pluginInit(void *handle)
+extern "C" [[gnu::visibility("default")]]
+std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *handle)
 #pragma GCC diagnostic pop
 {
 	auto compositor_hash = __hyprland_api_get_hash();
@@ -175,46 +168,9 @@ pluginInit(void *handle)
 	if (Config::mgr()->type() != Config::CONFIG_LUA)
 		init_die<"legacy config is not supported">(handle);
 
+	// TODO: fix the AppInfoLoader and get rid of this mess
 	auto icon_size_config = add_config<CFloatValue, "app_switcher:icons:size">(handle, 120);
-	WindowManagerConfig config{
-	    .app_switcher =
-	        AppSwitcherConfig{
-	            .container_background_color =
-	                add_config<CColorValue, "app_switcher:container:background_color">(
-	                    handle, 0x11'ff'ff'ff
-	                ),
-	            .container_border_color =
-	                add_config<CColorValue, "app_switcher:container:border_color">(
-	                    handle, 0x11'80'80'80
-	                ),
-	            .container_border_width =
-	                add_config<CFloatValue, "app_switcher:container:border_width">(handle, 1),
-	            .container_padding =
-	                add_config<CFloatValue, "app_switcher:container:padding">(handle, 20),
-	            .container_radius =
-	                add_config<CIntValue, "app_switcher:container:radius">(handle, 35),
-	            .selection_background_color =
-	                add_config<CColorValue, "app_switcher:selection:background_color">(
-	                    handle, 0x11'00'00'00
-	                ),
-	            .selection_padding =
-	                add_config<CFloatValue, "app_switcher:selection:padding">(handle, 10),
-	            .selection_radius =
-	                add_config<CIntValue, "app_switcher:selection:radius">(handle, 30),
-	            .font_family =
-	                add_config<CStringValue, "app_switcher:label:font_family">(handle, "Inter"),
-	            .font_color =
-	                add_config<CColorValue, "app_switcher:label:font_color">(handle, 0xff'ff'ff),
-	            .font_size = add_config<CIntValue, "app_switcher:label:font_size">(handle, 0),
-	            .label_sep = add_config<CFloatValue, "app_switcher:label:separation">(handle, 0),
-	            .icon_size = icon_size_config,
-	            .icon_sep  = add_config<CFloatValue, "app_switcher:icons:separation">(handle, 40)
-	        },
-	    .app_info_loader = AppInfoLoaderConfig{
-	        .icon_size = icon_size_config,
-	        .theme     = add_config<CStringValue, "app_switcher:icons:theme">(handle, "")
-	    }
-	};
+	WindowManagerConfig config(handle, icon_size_config);
 
 	HyprlandAPI::reloadConfig();
 
@@ -229,5 +185,5 @@ pluginInit(void *handle)
 	return {"wm", "a plugin that does a whole bunch of stuff", "Aditya", "0.1"};
 }
 
-extern "C" __attribute__((visibility("default"))) void pluginExit()
+extern "C" [[gnu::visibility("default")]] void pluginExit()
 { g_pHyprRenderer->m_renderPass.removeAllOfType(AppSwitcherPassElement::pass_name); }

@@ -16,12 +16,22 @@ module wm.AppSwitcher.AppInfoLoader;
 import std;
 import hyprland.debug;
 import hyprland.config;
+import hyprutils.memory;
 import wm.Support;
+
+using Hyprutils::Memory::CSharedPointer;
 
 using namespace wm;
 
 const gchar *AppInfoLoader::icon_fallbacks[]  = {"hicolor", nullptr};
 const gchar *AppInfoLoader::sound_fallbacks[] = {nullptr};
+
+AppInfoLoaderConfig::AppInfoLoaderConfig(
+    void *handle, CSharedPointer<CFloatValue> icon_size_config
+) :
+    icon_size(std::move(icon_size_config)),
+    theme(add_config<CStringValue, "app_switcher:icons:theme">(handle, ""))
+{}
 
 AppInfoLoader::AppInfoLoader(const AppInfoLoaderConfig &config) :
     theme_context(nk_xdg_theme_context_new(icon_fallbacks, sound_fallbacks)),

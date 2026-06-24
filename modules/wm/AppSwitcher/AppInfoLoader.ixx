@@ -24,6 +24,8 @@ struct AppInfo {
 struct AppInfoLoaderConfig {
 	CSharedPointer<CFloatValue>  icon_size;
 	CSharedPointer<CStringValue> theme;
+
+	AppInfoLoaderConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config);
 };
 
 /// Has one thread that does IO crap so that the main thread is not blocked.

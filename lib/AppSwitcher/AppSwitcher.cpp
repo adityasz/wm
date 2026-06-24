@@ -19,6 +19,32 @@ using std::uint64_t;
 using Render::GL::g_pHyprOpenGL;
 using Render::GL::CHyprOpenGLImpl;
 
+
+AppSwitcherConfig::AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config) :
+    container_background_color(
+        add_config<CColorValue, "app_switcher:container:background_color">(handle, 0x11'ff'ff'ff)
+    ),
+    container_border_color(
+        add_config<CColorValue, "app_switcher:container:border_color">(handle, 0x11'80'80'80)
+    ),
+    container_border_width(
+        add_config<CFloatValue, "app_switcher:container:border_width">(handle, 1)
+    ),
+    container_padding(add_config<CFloatValue, "app_switcher:container:padding">(handle, 20)),
+    container_radius(add_config<CIntValue, "app_switcher:container:radius">(handle, 50)),
+    selection_background_color(
+        add_config<CColorValue, "app_switcher:selection:background_color">(handle, 0x11'00'00'00)
+    ),
+    selection_padding(add_config<CFloatValue, "app_switcher:selection:padding">(handle, 10)),
+    selection_radius(add_config<CIntValue, "app_switcher:selection:radius">(handle, 40)),
+    font_family(add_config<CStringValue, "app_switcher:label:font_family">(handle, "Inter")),
+    font_color(add_config<CColorValue, "app_switcher:label:font_color">(handle, 0xff'ff'ff)),
+    font_size(add_config<CIntValue, "app_switcher:label:font_size">(handle, 0)),
+    label_sep(add_config<CFloatValue, "app_switcher:label:separation">(handle, 0)),
+    icon_size(std::move(icon_size_config)),
+    icon_sep(add_config<CFloatValue, "app_switcher:icons:separation">(handle, 40))
+{}
+
 AppSwitcher::AppSwitcher(const AppSwitcherConfig &config) :
     app_id_focus_history(nullptr),
     app_stuff_map(nullptr),

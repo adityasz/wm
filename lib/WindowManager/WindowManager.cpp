@@ -16,10 +16,17 @@ using Config::Actions::ActionResult;
 using Config::Actions::actionError;
 using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
-using Hyprutils::Memory::makeUnique;
+using Config::Values::CFloatValue;
+using Hyprutils::Memory::CSharedPointer, Hyprutils::Memory::makeUnique;
 
 using namespace wm;
-using namespace std::chrono_literals;
+
+WindowManagerConfig::WindowManagerConfig(
+    void *handle, const CSharedPointer<CFloatValue> &icon_size_config
+) :
+    app_switcher(AppSwitcherConfig{handle, icon_size_config}),
+    app_info_loader(AppInfoLoaderConfig{handle, icon_size_config})
+{}
 
 WindowManager::WindowManager(const WindowManagerConfig &config) :
     app_switcher(config.app_switcher),

@@ -53,6 +53,8 @@ struct AppSwitcherConfig {
 	CSharedPointer<CFloatValue>  label_sep;
 	CSharedPointer<CFloatValue>  icon_size;
 	CSharedPointer<CFloatValue>  icon_sep;
+
+	AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config);
 };
 
 class AppSwitcher {
