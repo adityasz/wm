@@ -24,8 +24,8 @@ using namespace wm;
 WindowManagerConfig::WindowManagerConfig(
     void *handle, const CSharedPointer<CFloatValue> &icon_size_config
 ) :
-    app_switcher(AppSwitcherConfig{handle, icon_size_config}),
-    app_info_loader(AppInfoLoaderConfig{handle, icon_size_config})
+    app_switcher({handle, icon_size_config}),
+    app_info_loader({handle, icon_size_config})
 {}
 
 WindowManager::WindowManager(const WindowManagerConfig &config) :

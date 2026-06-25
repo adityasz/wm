@@ -26,62 +26,30 @@ using namespace Bindings;
 
 using Config::Actions::ActionResult;
 using Config::Values::CFloatValue;
-using Hyprutils::Signal::CHyprSignalListener;
 
 using namespace wm;
 
 static std::optional<WindowManager> window_manager;
 
-struct Listeners {
-	CHyprSignalListener open_window;
-	CHyprSignalListener active_window;
-	CHyprSignalListener close_window;
-	CHyprSignalListener key_press;
-	CHyprSignalListener render;
-	CHyprSignalListener config_reloaded;
-};
-
-Listeners register_listeners(WindowManager &wm)
+static void register_listeners()
 {
-	return Listeners{
-	    .open_window   = Event::bus()->m_events.window.open.listen([&wm](const PHLWINDOW &w) {
-		    wm.on_open_window(w);
-	    }),
-	    .active_window = Event::bus()->m_events.window.active.listen(
-	        [&wm](const PHLWINDOW &w, Desktop::eFocusReason r) { wm.on_touch_window(w, r); }
-	    ),
-	    .close_window = Event::bus()->m_events.window.close.listen([&wm](const PHLWINDOW &w) {
-		    wm.on_close_window(w);
-	    }),
-	    .key_press    = Event::bus()->m_events.input.keyboard.key.listen(
-	        [&wm](IKeyboard::SKeyEvent e, Event::SCallbackInfo &i) { wm.on_key_press(e, i); }
-	    ),
-	    .render = Event::bus()->m_events.render.stage.listen([&wm](eRenderStage s) {
-		    wm.render_app_switcher(s);
-	    }),
-	    .config_reloaded =
-	        Event::bus()->m_events.config.reloaded.listen([&wm]() { wm.reset_config(); })
-	};
-}
-
-static int dsp_focus_or_exec(lua_State *L)
-{
-	return Config::Lua::checkResult(
-	    L,
-	    window_manager->focus_or_exec(
-	        lua_tostring(L, lua_upvalueindex(1)), lua_tostring(L, lua_upvalueindex(2))
-	    )
+	static auto open_window   = Event::bus()->m_events.window.open.listen([](const PHLWINDOW &w) {
+		window_manager->on_open_window(w);
+	});
+	static auto active_window = Event::bus()->m_events.window.active.listen(
+	    [](const PHLWINDOW &w, Desktop::eFocusReason r) { window_manager->on_touch_window(w, r); }
 	);
-}
-
-static int dsp_move_or_exec(lua_State *L)
-{
-	return Config::Lua::checkResult(
-	    L,
-	    window_manager->move_or_exec(
-	        lua_tostring(L, lua_upvalueindex(1)), lua_tostring(L, lua_upvalueindex(2))
-	    )
+	static auto close_window = Event::bus()->m_events.window.close.listen([](const PHLWINDOW &w) {
+		window_manager->on_close_window(w);
+	});
+	static auto key_press    = Event::bus()->m_events.input.keyboard.key.listen(
+	    [](IKeyboard::SKeyEvent e, Event::SCallbackInfo &i) { window_manager->on_key_press(e, i); }
 	);
+	static auto render = Event::bus()->m_events.render.stage.listen([](eRenderStage s) {
+		window_manager->render_app_switcher(s);
+	});
+	static auto config_reloaded =
+	    Event::bus()->m_events.config.reloaded.listen([]() { window_manager->reset_config(); });
 }
 
 template <lua_CFunction F, ComptimeString Name>
@@ -97,18 +65,38 @@ static int lua_wm_dispatch_factory(lua_State *L)
 	return 1;
 }
 
-bool register_functions(void *handle)
+static bool register_dispatchers(void *handle)
 {
 	return HyprlandAPI::addLuaFunction(
 	           handle,
 	           "wm",
 	           "focus_or_exec",
 	           [](lua_State *L) {
-		           return lua_wm_dispatch_factory<dsp_focus_or_exec, "wm.focus_or_exec">(L);
+		           return lua_wm_dispatch_factory<
+		               [](lua_State *L) {
+			               return Config::Lua::checkResult(
+			                   L,
+			                   window_manager->focus_or_exec(
+			                       lua_tostring(L, lua_upvalueindex(1)),
+			                       lua_tostring(L, lua_upvalueindex(2))
+			                   )
+			               );
+		               },
+		               "wm.focus_or_exec">(L);
 	           }
 	       )
 	       && HyprlandAPI::addLuaFunction(handle, "wm", "move_or_exec", [](lua_State *L) {
-		          return lua_wm_dispatch_factory<dsp_move_or_exec, "wm.move_or_exec">(L);
+		          return lua_wm_dispatch_factory<
+		              [](lua_State *L) {
+			              return Config::Lua::checkResult(
+			                  L,
+			                  window_manager->move_or_exec(
+			                      lua_tostring(L, lua_upvalueindex(1)),
+			                      lua_tostring(L, lua_upvalueindex(2))
+			                  )
+			              );
+		              },
+		              "wm.move_or_exec">(L);
 	          });
 }
 
@@ -136,13 +124,13 @@ ActionResult close_window(std::optional<PHLWINDOW> w)
 
 } // namespace hooks
 
-void register_hooks(void *handle)
+static bool register_hooks(void *handle)
 {
 	static const auto METHODS = HyprlandAPI::findFunctionsByName(handle, "closeWindow");
 	hooks::close_window_hook  = HyprlandAPI::createFunctionHook(
 	    handle, METHODS[0].address, reinterpret_cast<void *>(&hooks::close_window)
 	);
-	hooks::close_window_hook->hook();
+	return hooks::close_window_hook->hook();
 }
 
 #pragma GCC diagnostic push
@@ -176,11 +164,11 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 
 	window_manager.emplace(config);
 
-	if (!register_functions(handle))
-		init_die<"failed to register functions">(handle);
-
-	static auto listeners = register_listeners(*window_manager);
-	register_hooks(handle);
+	register_listeners();
+	if (!register_dispatchers(handle))
+		init_die<"failed to register dispatchers">(handle);
+	if (!register_hooks(handle))
+		init_die<"failed to register hooks">(handle);
 
 	return {"wm", "a plugin that does a whole bunch of stuff", "Aditya", "0.1"};
 }
