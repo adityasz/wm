@@ -1,101 +1,84 @@
 # WM
 
-A Hyprland plugin that provides app and window switchers and some
-dispatchers:
+A Hyprland plugin that provides app and window switchers and some dispatchers.
 
-| Dispatcher    | Description                                                                                                                                 | Params |
-|---------------|---------------------------------------------------------------------------------------------------------------------------------------------|--------|
-| `exec`        | Launch a quick access app                                                                                                                   | `int`  |
-| `focusorexec` | Focus the last used window of a quick access app or launch it                                                                               | `int`  |
-| `moveorexec`  | Focus the last used window of an app, moving it to the active workspace on the active monitor if needed, or launch it if there is no window | `int`  |
+Tiled layout WIP.
 
 ## Installation
 
-See
-[`CMakeLists.txt`](https://github.com/adityasz/wm/blob/master/CMakeLists.txt)
-for the full list of dependencies.
+See the [CMake experimental features guide](https://github.com/Kitware/CMake/blob/master/Help/dev/experimental.rst)
+(for the right CMake version) to get the value for the `import std` gate.
 
-```console
-$ cmake -B build/release -S . -GNinja -DCMAKE_BUILD_TYPE=Release
-$ cmake --build build/release [-j <JOBS>]
-$ hyprctl plugin load $(realpath build/release/libwm.so)
-```
+- Generate the build system:
+  ```console
+  $ cmake --preset release-build   \
+      -DCMAKE_CXX_COMPILER=clang++ \
+      -DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=<UUID>
+  ```
+- Compile: `cmake --build build/release -j [<jobs>]`
+- Install: `cmake --install build/release --prefix ~/.local` will install the
+  plugin at `~/.local/lib/libwm.so`.
 
 ### Options
 
-The following options are provided when generating the build system (i.e., in
-the `cmake -B build -S .` command):
+The following options can be set when generating the build system:
 
 - `-DSWITCHER_MOD=<KEY>`: The modifier key for the app and window switcher
-  [default: `KEY_LEFTMETA`]. See
+  [default for release build: `KEY_LEFTMETA`]. See
   [`/usr/include/linux/input-event-codes.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
   for the list of keys.
 
   Use [<kbd>shift</kbd>]<kbd>tab</kbd> for switching between applications, and
   [<kbd>shift</kbd>]<kbd>\`</kbd> for switching between windows of an app. These
   are hardcoded in
-  [`lib/WindowManager/WindowManager.cpp`](lib/WindowManager/WindowManager.cpp)
-  `:WindowManager::on_key_press(uint32_t, wl_keyboard_key_state)`.
-  It is essential to keep these values compile time constants since this
+  [`lib/WindowManager/WindowManager.cpp`](lib/WindowManager/WindowManager.cpp)`:WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)`.
+  It is essential to keep these values compile-time constants since this
   function is run on each keypress and release.
 
-- `-DNUM_QUICK_ACCESS_APPS=<NUM>`: The number of *quick access apps* [default: 10]. This is a compile time
-  constant to get static storage.
-
-- `-DDEBUG_LOGS=ON`: Enable debug logs.
+- `-DDEBUG_LOGS=<ON|OFF>`: Enable/disable debug logs.
 
 ## Configuration
 
-```hyprlang
-plugin {
-    wm {
-        # Quick access apps
-        # Format:
-        #     app_<n> = <class>, <command>
-        # where 0 <= n < NUM_QUICK_ACCESS_APPS
-        # [default: app_<n> = "", "", for all n]
-        # Example:
-        app_0 = kitty, kitty
-        app_1 = org.gnome.SystemMonitor, gnome-system-monitor
-        
-        # This is the default config of the app switcher
-        app_switcher {
-            container {
-                background_color = rgba(ffffff11)
-                border_color = rgba(80808011)
-                padding = 20
-                radius = 35
-                border_width = 1
-            }
-            selection {
-                background_color = rgba(00000011)
-                padding = 10
-                radius = 30
-            }
-            label {
-                font_family = Inter
-                font_color = rgba(ffffff)
-                font_size = 0
-                separation = 0
-            }
-            icons {
-                size = 120
-                separation = 40
-                theme = ""
+```lua
+hl.config({
+    plugin = {
+        wm = {
+            app_switcher = {
+                container = {
+                    background_color = "#ffffff11",
+                    border_color = "#80808011",
+                    padding = 20,
+                    radius = 50,
+                    border_width = 1,
+                },
+                selection = {
+                    background_color = "#00000011",
+                    padding = 10,
+                    radius = 40,
+                },
+                label = {
+                    font_family = "Inter",
+                    font_color = "#ffffff",
+                    font_size = 0,
+                    separation = 0,
+                },
+                icons = {
+                    size = 120,
+                    separation = 40,
+                    theme = "", -- themes must be comma-separated, e.g., "a,b,c"
+                }
             }
         }
     }
-}
-
-bind = SUPER,       0, wm:focusorexec, 0
-bind = SUPER SHIFT, 0, wm:moveorexec,  0
-bind = SUPER CTRL,  0, wm:exec,        0
-bind = SUPER,       1, wm:focusorexec, 1
-bind = SUPER SHIFT, 1, wm:moveorexec,  1
-bind = SUPER CTRL,  1, wm:exec,        1
+})
 ```
 
-> [!NOTE]
->
-> Shadows in app icons do not look right. Functionality is not affected;
-> PRs with fixes are welcome.
+`hl.plugin.wm.{focus,move}_or_exec` take a table with `class` and `exec` fields.
+E.g.,
+
+```lua
+hl.bind("SUPER + 1", hl.plugin.wm.focus_or_exec({ class = "kitty", exec = "kitty" }))
+hl.bind("SUPER + SHIFT + 1", hl.plugin.wm.move_or_exec({ class = "kitty", exec = "kitty" }))
+```
+
+[Example binds](https://github.com/adityasz/dotfiles/blob/4b005be7d9979768b1af7a16a103815431189a2e/.config/hypr/keymap.lua#L52).
