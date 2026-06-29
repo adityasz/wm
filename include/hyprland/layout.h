@@ -9,5 +9,4 @@
 #include <variant>
 #include <vector>
 
-#include <hyprland/src/protocols/XDGShell.hpp>
-#include <hyprland/src/protocols/core/Compositor.hpp>
+#include <hyprland/src/layout/space/Space.hpp>

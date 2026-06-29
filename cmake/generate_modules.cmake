@@ -39,7 +39,7 @@ list(APPEND clang_opts
 set(GENERATED_MODULES_DIR "${CMAKE_BINARY_DIR}/modules")
 
 # HORRIBLE: PREFIX already included in hyprutils INCLUDEDIR but not in hyprland INCLUDEDIR.
-set(HYPRLAND_MODULES config debug desktop devices event helpers managers plugins render protocols)
+set(HYPRLAND_MODULES config debug desktop devices event helpers managers plugins render protocols xwayland layout)
 foreach(module IN LISTS HYPRLAND_MODULES)
     cxxmgen("hyprland.${module}"
         OUTPUT "${GENERATED_MODULES_DIR}/hyprland/${module}.ixx"

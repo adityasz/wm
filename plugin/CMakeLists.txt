@@ -1,4 +1,11 @@
-add_library(wm SHARED wm.cpp)
+add_library(wm SHARED wm.cpp Dispatchers.cpp Hooks.cpp Listeners.cpp)
+target_sources(wm
+    PUBLIC
+        FILE_SET wm_modules
+        TYPE CXX_MODULES
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        FILES Dispatchers.ixx Globals.ixx Hooks.ixx Listeners.ixx
+)
 set_target_properties(wm PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 target_link_libraries(wm PRIVATE WindowManager AppSwitcher WindowSwitcher Support llvm_modules Hyprland nkutils-icons)
 
