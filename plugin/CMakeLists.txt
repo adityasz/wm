@@ -1,3 +1,7 @@
+if(NOT HASH_CHECK)
+    set_source_files_properties(wm.cpp PROPERTIES COMPILE_DEFINITIONS UNSAFE_SKIP_HASH_CHECK)
+endif()
+
 add_library(wm SHARED wm.cpp Dispatchers.cpp Hooks.cpp Listeners.cpp)
 target_sources(wm
     PUBLIC

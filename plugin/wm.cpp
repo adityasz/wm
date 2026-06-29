@@ -26,6 +26,7 @@ extern "C" [[gnu::visibility("default")]]
 std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *handle)
 #pragma GCC diagnostic pop
 {
+#ifndef UNSAFE_SKIP_HASH_CHECK
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
 	if (std::strcmp(compositor_hash, client_hash)) {
@@ -33,6 +34,7 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 		    handle, compositor_hash, client_hash
 		);
 	}
+#endif
 
 	if (Config::mgr()->type() != Config::CONFIG_LUA)
 		init_die<"legacy config is not supported">(handle);
