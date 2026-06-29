@@ -2,6 +2,10 @@ if(NOT HASH_CHECK)
     set_source_files_properties(wm.cpp PROPERTIES COMPILE_DEFINITIONS UNSAFE_SKIP_HASH_CHECK)
 endif()
 
+if(BETTER_FLOATING_BEHAVIOR)
+    set_source_files_properties(Hooks.cpp PROPERTIES COMPILE_DEFINITIONS BETTER_FLOATING_BEHAVIOR)
+endif()
+
 add_library(wm SHARED wm.cpp Dispatchers.cpp Hooks.cpp Listeners.cpp)
 target_sources(wm
     PUBLIC

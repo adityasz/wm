@@ -24,6 +24,7 @@ include_directories("${CMAKE_SOURCE_DIR}/include")
 set(SWITCHER_MOD KEY_LEFTMETA CACHE STRING "The modifier key for switching apps and windows" )
 option(DEBUG_LOGS "Enable debug logs" OFF)
 option(HASH_CHECK "Disable hash check" ON)
+option(BETTER_FLOATING_BEHAVIOR "Read hooks.cpp to figure out why" ON)
 
 add_compile_definitions(SWITCHER_MOD=${SWITCHER_MOD})
 if(DEBUG_LOGS)

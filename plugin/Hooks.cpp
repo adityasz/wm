@@ -100,6 +100,7 @@ ActionResult fn(std::optional<PHLWINDOW> w)
 
 } // namespace Actions_closeWindow
 
+#ifdef BETTER_FLOATING_BEHAVIOR
 namespace IHyprRenderer_renderWorkspaceWindows {
 
 using namespace Render;
@@ -387,6 +388,7 @@ fn(CCompositor *thisptr, const Vector2D &pos, uint16_t properties, PHLWINDOW pIg
 // clang-format on
 
 } // namespace CCompositor_vectorToWindowUnified
+#endif
 
 } // namespace hooks
 
@@ -401,6 +403,7 @@ bool register_hooks(void *handle)
 	);
 	success &= hooks::Actions_closeWindow::hook->hook();
 
+#ifdef BETTER_FLOATING_BEHAVIOR
 	hooks::IHyprRenderer_renderWorkspaceWindows::hook = HyprlandAPI::createFunctionHook(
 	    handle,
 	    HyprlandAPI::findFunctionsByName(handle, "renderWorkspaceWindows").front().address,
@@ -423,6 +426,7 @@ bool register_hooks(void *handle)
 	    reinterpret_cast<void *>(&hooks::CCompositor_vectorToWindowUnified::fn)
 	);
 	success &= hooks::CCompositor_vectorToWindowUnified::hook->hook();
+#endif
 
 	return success;
 }
