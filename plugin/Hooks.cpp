@@ -141,6 +141,15 @@ using namespace Desktop::View;
 
 static CFunctionHook *hook = nullptr;
 
+// The original function was ..., or as Trump would say:
+// > It did a lot of redundant checks, it did a lot of redundant passes.
+//
+// The following treats CCompositor::m_windows to be in z-order. Any window
+// below a fullscreen window is rendered only if it would be visible, and all
+// windows above a fullscreen window are always rendered.
+//
+// There may be ways to prevent windows below fullscreen windows from being
+// rendered, I don't care enough to respect them.
 void fn(
     IHyprRenderer         *thisptr,
     PHLMONITOR             pMonitor,
@@ -148,15 +157,6 @@ void fn(
     const Time::steady_tp &time
 )
 {
-	// The original function was ..., or as Trump would say:
-	// > It did a lot of redundant checks, it did a lot of redundant passes.
-	//
-	// The following treats CCompositor::m_windows to be in z-order. Any window
-	// below a fullscreen window is rendered only if it would be visible, and
-	// all windows above a fullscreen window are always rendered.
-	//
-	// There may be ways to prevent windows below fullscreen windows from being
-	// rendered, I don't care enough to respect them.
 	auto it = std::ranges::find_if(g_pCompositor->m_windows, [&](const auto &w) {
 		return w->m_workspace == pWorkspace
 		       && w->isFullscreen()
@@ -184,13 +184,18 @@ void fn(
 				thisptr->renderWindow(w, pMonitor, time, true, RENDER_PASS_ALL);
 		}
 	} else {
-		fading_out = g_pCompositor->m_windows
-		             | std::views::take(fullscreen_idx)
-		             | std::views::filter([&](const auto &w) {
-			               return shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor)
-			                      && w->m_fadingOut;
-		               })
-		             | std::ranges::to<llvm::SmallVector<PHLWINDOWREF>>();
+		// fullscreen window is opaque
+		for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
+			if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
+				continue;
+			if (w->m_fadingOut) {
+				fading_out.emplace_back(w);
+			} else if (w->m_workspace != pWorkspace) {
+				// when switching from one workspace to another, windows on
+				// other workspaces still need to be rendered
+				thisptr->renderWindow(w, pMonitor, time, true, RENDER_PASS_ALL);
+			}
+		}
 	}
 
 	thisptr->renderWindow(*it, pMonitor, time, true, RENDER_PASS_ALL);
