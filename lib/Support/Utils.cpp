@@ -25,12 +25,6 @@ void focus_and_raise_window(
 	    && window->m_workspace != last_monitor->m_activeSpecialWorkspace) {
 		last_monitor->setSpecialWorkspace(nullptr);
 	}
-	if (window->m_workspace->m_hasFullscreenWindow) {
-		if (auto fullscreen_window = window->m_workspace->getFullscreenWindow();
-		    !window->m_pinned && fullscreen_window != window) {
-			g_pCompositor->setWindowFullscreenInternal(fullscreen_window, FSMODE_NONE);
-		}
-	}
 	Desktop::focusState()->fullWindowFocus(
 	    window, Desktop::FOCUS_REASON_DISPATCH_FOCUSWINDOW, pSurface, false
 	);
