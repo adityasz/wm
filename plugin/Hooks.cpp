@@ -195,7 +195,7 @@ void fn(
 
 	thisptr->renderWindow(*it, pMonitor, time, true, RENDER_PASS_ALL);
 
-	for (const auto &w : g_pCompositor->m_windows | std::views::drop(fullscreen_idx)) {
+	for (const auto &w : g_pCompositor->m_windows | std::views::drop(fullscreen_idx + 1)) {
 		if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
 			continue;
 		if (w->m_fadingOut)
