@@ -11,7 +11,7 @@ export namespace wm {
 /// switcher if it is open). But that would require taking a snapshot of windows
 /// and that's a ton of code that I do not want to write, especially when I find
 /// the current setup to be good enough.
-class WindowSwitcher {
+class [[gnu::visibility("hidden")]] WindowSwitcher {
 	// WindowManager::on_touch_window does not modify this when active = true
 	llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows;
 	const char                          *app_id;

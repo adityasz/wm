@@ -9,7 +9,17 @@ project(WM VERSION 0.1 LANGUAGES C CXX)
 set(CMAKE_CXX_SCAN_FOR_MODULES ON)
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wpedantic -Wextra -march=native")
+set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
+add_link_options("-Wl,-Bsymbolic-functions")
+
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+# fat LTO can inline stuff that thin LTO can't
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_C_COMPILE_OPTIONS_IPO "-flto=full")
+    set(CMAKE_C_LINK_OPTIONS_IPO "-flto=full")
+    set(CMAKE_CXX_COMPILE_OPTIONS_IPO "-flto=full")
+    set(CMAKE_CXX_LINK_OPTIONS_IPO "-flto=full")
+endif()
 
 include(GNUInstallDirs)
 
@@ -26,7 +36,6 @@ option(DEBUG_LOGS "Enable debug logs" OFF)
 option(HASH_CHECK "Disable hash check" ON)
 option(BETTER_FLOATING_BEHAVIOR "Read hooks.cpp to figure out why" ON)
 
-add_compile_definitions(SWITCHER_MOD=${SWITCHER_MOD})
 if(DEBUG_LOGS)
     add_compile_definitions(DEBUG_LOGS)
 endif()

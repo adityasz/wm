@@ -21,7 +21,7 @@ struct AppInfo {
 	Image       icon;
 };
 
-struct AppInfoLoaderConfig {
+struct [[gnu::visibility("hidden")]] AppInfoLoaderConfig {
 	CSharedPointer<CFloatValue>  icon_size;
 	CSharedPointer<CStringValue> theme;
 
@@ -29,7 +29,7 @@ struct AppInfoLoaderConfig {
 };
 
 /// Has one thread that does IO crap so that the main thread is not blocked.
-class AppInfoLoader {
+class [[gnu::visibility("hidden")]] AppInfoLoader {
 	struct Task {
 		std::string             app_id;
 		std::string             initial_app_id;

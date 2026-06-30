@@ -18,14 +18,14 @@ using Hyprutils::Memory::CSharedPointer;
 
 export namespace wm {
 
-struct WindowManagerConfig {
+struct [[gnu::visibility("hidden")]] WindowManagerConfig {
 	AppSwitcherConfig   app_switcher;
 	AppInfoLoaderConfig app_info_loader;
 
 	WindowManagerConfig(void *handle, const CSharedPointer<CFloatValue> &icon_size_config);
 };
 
-class WindowManager {
+class [[gnu::visibility("hidden")]] WindowManager {
 	StringPool                                  app_id_pool;
 	std::vector<const char *>                   app_id_focus_history;
 	absl::flat_hash_map<const char *, AppStuff> app_id_to_stuff_map;

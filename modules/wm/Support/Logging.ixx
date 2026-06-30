@@ -27,6 +27,7 @@ enum class LogLevel : uint8_t {
 
 #ifdef DEBUG_LOGS
 template <LogLevel Level, ComptimeString FmtStr, typename... Args>
+[[gnu::visibility("hidden")]]
 void log(Args &&...fmt_args)
 {
 	static constexpr auto fmt_str = ComptimeString{"[wm] "} + FmtStr;
@@ -36,6 +37,7 @@ void log(Args &&...fmt_args)
 }
 #else
 template <LogLevel Level, ComptimeString FmtStr, typename... Args>
+[[gnu::visibility("hidden")]]
 void log(Args &&...)
 {}
 #endif
@@ -43,7 +45,7 @@ void log(Args &&...)
 } // namespace wm
 
 template <>
-struct std::formatter<CWindow *> {
+struct [[gnu::visibility("hidden")]] std::formatter<CWindow *> {
 	constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
 	auto format(const CWindow *thing, format_context &ctx) const
@@ -60,7 +62,7 @@ struct std::formatter<CWindow *> {
 
 template <typename T>
     requires IsOneOf<T, CWorkspace *, CMonitor *>
-struct std::formatter<T> {
+struct [[gnu::visibility("hidden")]] std::formatter<T> {
 	constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 
 	auto format(const T thing, format_context &ctx) const

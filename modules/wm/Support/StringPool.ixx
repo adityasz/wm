@@ -9,14 +9,14 @@ using std::size_t;
 
 using StringPoolEntry = std::pair<std::unique_ptr<char[]>, size_t>;
 
-struct StringPoolHash {
+struct [[gnu::visibility("hidden")]] StringPoolHash {
 	using is_transparent = void;
 
 	size_t operator()(const StringPoolEntry &t) const;
 	size_t operator()(std::string_view sv) const;
 };
 
-struct StringPoolEq {
+struct [[gnu::visibility("hidden")]] StringPoolEq {
 	using is_transparent = void;
 
 	bool operator()(const StringPoolEntry &lhs, const StringPoolEntry &rhs) const;
@@ -24,7 +24,7 @@ struct StringPoolEq {
 	bool operator()(std::string_view lhs, const StringPoolEntry &rhs) const;
 };
 
-class StringPool {
+class [[gnu::visibility("hidden")]] StringPool {
 	absl::flat_hash_set<StringPoolEntry, StringPoolHash, StringPoolEq> pool;
 
 public:

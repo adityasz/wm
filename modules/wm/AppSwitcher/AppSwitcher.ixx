@@ -38,7 +38,7 @@ struct AppStuff {
 	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
 };
 
-struct AppSwitcherConfig {
+struct [[gnu::visibility("hidden")]] AppSwitcherConfig {
 	CSharedPointer<CColorValue>  container_background_color;
 	CSharedPointer<CColorValue>  container_border_color;
 	CSharedPointer<CFloatValue>  container_border_width;
@@ -57,7 +57,7 @@ struct AppSwitcherConfig {
 	AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config);
 };
 
-class AppSwitcher {
+class [[gnu::visibility("hidden")]] AppSwitcher {
 	std::vector<const char *>                         *app_id_focus_history;
 	absl::flat_hash_map<const char *, AppStuff>       *app_stuff_map;
 	std::chrono::time_point<std::chrono::system_clock> first_tab_press;
@@ -107,7 +107,7 @@ private:
 };
 
 // Credit: https://github.com/yz778/hyprview
-class AppSwitcherPassElement final : public IPassElement {
+class [[gnu::visibility("hidden")]] AppSwitcherPassElement final : public IPassElement {
 public:
 	explicit AppSwitcherPassElement(AppSwitcher *instance);
 	~AppSwitcherPassElement() override = default;

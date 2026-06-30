@@ -1,3 +1,3 @@
 export module hooks;
 
-export bool register_hooks(void *handle);
+export [[gnu::visibility("hidden")]] bool register_hooks(void *handle);

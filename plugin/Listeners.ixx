@@ -1,3 +1,3 @@
 export module listeners;
 
-export void register_listeners();
+export [[gnu::visibility("hidden")]] void register_listeners();
