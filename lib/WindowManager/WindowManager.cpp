@@ -1,5 +1,7 @@
 module;
 
+#include <desktop/Workspace.hpp>
+#include <desktop/state/FocusState.hpp>
 #include <linux/input-event-codes.h>
 
 module wm.WindowManager;
@@ -17,6 +19,7 @@ using Config::Actions::ActionResult;
 using Config::Actions::actionError;
 using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
+using Config::Actions::eTogglableAction;
 using Config::Values::CFloatValue;
 using Hyprutils::Memory::CSharedPointer, Hyprutils::Memory::makeUnique;
 
@@ -34,6 +37,7 @@ WindowManager::WindowManager(const WindowManagerConfig &config) :
     app_info_loader(config.app_info_loader),
     config(config)
 {
+	window_info_map.reserve(10);
 	app_id_to_stuff_map.reserve(20);
 	for (const auto &window :
 	     Desktop::History::windowTracker()->fullHistory() | std::views::reverse) {
@@ -81,6 +85,17 @@ void WindowManager::on_open_window(const PHLWINDOW &window)
 	}
 }
 
+void WindowManager::maybe_restore_fullscreen(const PHLWINDOW &window) const
+{
+	if (auto it = window_info_map.find(window.get());
+	    it != window_info_map.end()
+	    && window->m_fullscreenState.internal == eFullscreenMode::FSMODE_NONE) {
+		// window was maximized/fullscreened before, but then some other window
+		// got maximized/fullscreened, and Hyprland restored this window.
+		auto _ = Config::Actions::fullscreenWindow(it->second.mode, window);
+	}
+}
+
 void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason)
 {
 	// active event can be emitted after close event in 0.55.4:
@@ -103,11 +118,15 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 		auto &windows   = app_id_to_stuff_map.find(app_id)->second.windows;
 		auto  app_id_it = std::ranges::find(app_id_focus_history, app_id);
 		std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
-		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end())
+		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end()) {
 			std::rotate(windows.begin(), window_it, window_it + 1);
-		else // active event emitted before open event, which does happen in 0.55.4
+		} else {
+			// active event emitted before open event, which does happen in 0.55.4
 			windows.insert(windows.begin(), window);
+			return;
+		}
 	}
+	maybe_restore_fullscreen(window);
 }
 
 void WindowManager::on_close_window(const PHLWINDOW &window)
@@ -129,6 +148,7 @@ void WindowManager::on_close_window(const PHLWINDOW &window)
 		app_info_loader.prune(app_id_focus_history);
 		app_id_pool.remove(app_id);
 	}
+	window_info_map.erase(window.get());
 }
 
 ActionResult WindowManager::focus_or_exec(const char *app_id, const char *command)
@@ -163,7 +183,7 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) [[unlikely]] {
 		return actionError(
-		    "Monitor not found", eActionErrorLevel::INFO, eActionErrorCode::NOT_FOUND
+		    "Monitor not found", eActionErrorLevel::ERROR, eActionErrorCode::NOT_FOUND
 		);
 	}
 	if (auto active_workspace = monitor->m_activeWorkspace; // some checks may be redundant
@@ -185,6 +205,51 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	return {};
 }
 
+ActionResult WindowManager::fullscreen(eFullscreenMode mode)
+{
+	auto window = Desktop::focusState()->window();
+	if (!window) [[unlikely]] {
+		return actionError(
+		    "No window is focused", eActionErrorLevel::ERROR, eActionErrorCode::NOT_FOUND
+		);
+	}
+	auto curr_mode = window->m_fullscreenState.internal;
+	if (curr_mode == eFullscreenMode::FSMODE_NONE) {
+		window_info_map[window.get()] = {
+		    .position = window->m_position,
+		    .size     = window->m_size,
+		    .floating = window->m_isFloating,
+		    .mode     = mode,
+		};
+		if (!window->m_isFloating)
+			auto _ = Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_ENABLE, window);
+		if (auto target = window->layoutTarget()) [[likely]]
+			target->setPositionGlobal(window->m_workspace->m_space->workArea());
+		return Config::Actions::fullscreenWindow(mode, window);
+	}
+	if (curr_mode == mode) {
+		if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) {
+			auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, window);
+			if (it->second.floating) {
+				window->layoutTarget()->setPositionGlobal(
+				    CBox{it->second.position, it->second.size}
+				);
+			} else {
+				// no way to remember last floating position?
+				if (auto target = window->layoutTarget()) [[likely]]
+					target->rememberFloatingSize(it->second.size);
+				auto _ =
+				    Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_DISABLE, window);
+			}
+			window_info_map.erase(it);
+			return {};
+		}
+	}
+	if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) [[likely]]
+		it->second.mode = mode;
+	return Config::Actions::fullscreenWindow(mode, window);
+}
+
 void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)
 {
 	static bool mod_held   = false;
@@ -198,10 +263,13 @@ void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &i
 		if (!state) {
 			// mod released
 			// both of them cannot be active at the same time by design
-			if (window_switcher.is_active())
+			if (window_switcher.is_active()) {
 				window_switcher.deactivate();
-			else if (app_switcher.is_active())
+				if (auto window = Desktop::focusState()->window())
+					maybe_restore_fullscreen(window);
+			} else if (app_switcher.is_active()) {
 				app_switcher.focus_selected();
+			}
 		}
 		info.cancelled = false;
 		break;
