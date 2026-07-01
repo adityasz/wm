@@ -101,7 +101,7 @@ public:
 private:
 	void                                              load_icon_textures() const;
 	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
-	void                                              render();
+	[[gnu::hot]] void                                 render();
 
 	friend class AppSwitcherPassElement;
 };

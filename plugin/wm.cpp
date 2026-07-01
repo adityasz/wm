@@ -29,14 +29,14 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 #ifndef UNSAFE_SKIP_HASH_CHECK
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
-	if (std::strcmp(compositor_hash, client_hash)) {
+	if (std::strcmp(compositor_hash, client_hash)) [[unlikely]] {
 		init_die<"Version mismatch (headers ver = {} != {} = running ver)">(
 		    handle, compositor_hash, client_hash
 		);
 	}
 #endif
 
-	if (Config::mgr()->type() != Config::CONFIG_LUA)
+	if (Config::mgr()->type() != Config::CONFIG_LUA) [[unlikely]]
 		init_die<"legacy config is not supported">(handle);
 
 	// TODO: fix the AppInfoLoader and get rid of this mess
@@ -49,9 +49,9 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 	window_manager.emplace(config);
 
 	register_listeners();
-	if (!register_dispatchers(handle))
+	if (!register_dispatchers(handle)) [[unlikely]]
 		init_die<"failed to register dispatchers">(handle);
-	if (!register_hooks(handle))
+	if (!register_hooks(handle)) [[unlikely]]
 		init_die<"failed to register hooks">(handle);
 
 	return {"wm", "a plugin that does a whole bunch of stuff", "Aditya", "0.1"};

@@ -187,6 +187,9 @@ void fn(
 	} else {
 		// fullscreen window is opaque
 		for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
+			// this also hides floating windows behind a maximized window that lie
+			// outside its bounds, e.g., a floating window covering some part of
+			// waybar: not an issue for me.
 			if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
 				continue;
 			if (w->m_fadingOut) {

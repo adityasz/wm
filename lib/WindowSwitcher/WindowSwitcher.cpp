@@ -63,9 +63,6 @@ void WindowSwitcher::update_app_windows(llvm::SmallVectorImpl<PHLWINDOWREF> *app
 
 void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
 {
-	if (!active)
-		return;
-
 	for (const auto &[i, window] : *app_windows | std::views::enumerate) {
 		if (window == closing_window) {
 			if (idx == i) {

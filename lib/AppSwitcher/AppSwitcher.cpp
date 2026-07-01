@@ -60,7 +60,7 @@ void AppSwitcher::activate(
     absl::flat_hash_map<const char *, AppStuff> *app_stuff_map
 )
 {
-	if (app_id_focus_history->empty()) {
+	if (app_id_focus_history->empty()) [[unlikely]] {
 		log<LogLevel::DEBUG, "AppSwitcher: no apps to switch, refusing to activate">();
 		return;
 	}
@@ -91,22 +91,22 @@ void AppSwitcher::activate(
 
 void AppSwitcher::highlight_next(bool backwards)
 {
-	if (backwards) {
+	if (!backwards) {
+		idx++;
+		if (idx == static_cast<int>(app_id_focus_history->size()))
+			idx = 0;
+	} else {
 		if (idx)
 			idx--;
 		else
 			idx = static_cast<int>(app_id_focus_history->size()) - 1;
-	} else {
-		idx++;
-		if (idx == static_cast<int>(app_id_focus_history->size()))
-			idx = 0;
 	}
 
 	assert(
 	    (idx >= 0 && idx < static_cast<int>(app_id_focus_history->size())) && "idx out of bounds"
 	);
 
-	if (auto monitor = Desktop::focusState()->monitor())
+	if (auto monitor = Desktop::focusState()->monitor()) [[likely]]
 		g_pHyprRenderer->damageMonitor(monitor);
 }
 
@@ -131,9 +131,6 @@ void AppSwitcher::deactivate()
 
 void AppSwitcher::on_close_app(const char *closing_app_id)
 {
-	if (!active)
-		return;
-
 	// no app will be left after this is closed, so deactivate
 	if (app_id_focus_history->size() == 1)
 		return deactivate();
@@ -151,11 +148,11 @@ void AppSwitcher::on_close_app(const char *closing_app_id)
 
 std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 {
-	size_t num_icons  = app_id_focus_history->size();
+	auto num_icons    = app_id_focus_history->size();
 	auto total_width  = container_padding * 2 + icon_size * num_icons + icon_sep * (num_icons - 1);
 	auto total_height = 2 * container_padding + icon_size + label_sep + font_height;
 	auto monitor      = Desktop::focusState()->monitor();
-	if (!monitor) {
+	if (!monitor) [[unlikely]] {
 		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return std::unexpected{std::monostate{}};
 	}
@@ -168,7 +165,7 @@ std::expected<CBox, std::monostate> AppSwitcher::get_container_box() const
 void AppSwitcher::render()
 {
 	auto monitor = Desktop::focusState()->monitor();
-	if (!monitor) {
+	if (!monitor) [[unlikely]] {
 		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return;
 	}
@@ -307,9 +304,10 @@ void AppSwitcher::reset_config(const AppSwitcherConfig &config)
 	font_height = 0;
 	if (font_size) {
 		if (auto texture =
-		        g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family)) {
+		        g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family))
+		    [[likely]] {
 			font_height = texture->m_size.y;
-		} else {
+		} else [[unlikely]] {
 			log<LogLevel::CRIT, "could not create font texture; is {} a valid font?">(font_family);
 		}
 	}
@@ -320,9 +318,9 @@ void AppSwitcher::load_icon_textures() const
 	for (auto &app_stuff : *app_stuff_map | std::views::values) {
 		auto &[_, app_info] = app_stuff;
 		if (auto future = std::get_if<std::future<AppInfo *>>(&app_info)) {
-			if (future->wait_for(0s) != std::future_status::ready)
+			if (future->wait_for(0s) != std::future_status::ready) [[unlikely]]
 				continue;
-			if (auto app_info_ptr = future->get(); !app_info_ptr->icon.buffer) {
+			if (auto app_info_ptr = future->get(); !app_info_ptr->icon.buffer) [[unlikely]] {
 				app_info = AppRenderData{app_info_ptr->name, {}};
 			} else {
 				auto &icon      = app_info_ptr->icon;
