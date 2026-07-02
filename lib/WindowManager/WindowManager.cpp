@@ -223,8 +223,17 @@ ActionResult WindowManager::fullscreen(eFullscreenMode mode)
 		};
 		if (!window->m_isFloating)
 			auto _ = Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_ENABLE, window);
-		if (auto target = window->layoutTarget()) [[likely]]
-			target->setPositionGlobal(window->m_workspace->m_space->workArea());
+		if (auto monitor = window->m_monitor.lock()) [[likely]] {
+			if (auto target = window->layoutTarget()) [[likely]] {
+				auto box = window->m_workspace->m_space->workArea(true);
+				auto reserved = window->getFullWindowReservedArea();
+				box.x += reserved.topLeft.x;
+				box.y += reserved.topLeft.y;
+				box.w -= reserved.topLeft.x + reserved.bottomRight.x;
+				box.h -= reserved.topLeft.y + reserved.bottomRight.y;
+				g_layoutManager->setTargetGeom(box, target);
+			}
+		}
 		return Config::Actions::fullscreenWindow(mode, window);
 	}
 	if (curr_mode == mode) {
