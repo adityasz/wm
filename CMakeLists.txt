@@ -13,7 +13,8 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 add_link_options("-Wl,-Bsymbolic-functions")
 
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-# fat LTO can inline stuff that thin LTO can't
+# thin LTO does not inline some functions across TUs that should ideally be
+# inlined, haven't benchmarked for other differences though
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_C_COMPILE_OPTIONS_IPO "-flto=full")
     set(CMAKE_C_LINK_OPTIONS_IPO "-flto=full")
