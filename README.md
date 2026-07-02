@@ -1,6 +1,6 @@
 # WM
 
-A Hyprland plugin that does window management in the optimal way.
+A Hyprland plugin that improves window management.
 
 ## Installation
 
@@ -14,6 +14,7 @@ A Hyprland plugin that does window management in the optimal way.
 - Generate the build system:
   ```console
   $ cmake --preset release-build   \
+      -DCMAKE_C_COMPILER=clang     \
       -DCMAKE_CXX_COMPILER=clang++ \
       -DCMAKE_EXPERIMENTAL_CXX_IMPORT_STD=<UUID>
   ```
