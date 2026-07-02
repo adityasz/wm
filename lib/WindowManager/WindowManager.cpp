@@ -1,7 +1,5 @@
 module;
 
-#include <desktop/Workspace.hpp>
-#include <desktop/state/FocusState.hpp>
 #include <linux/input-event-codes.h>
 
 module wm.WindowManager;
@@ -11,6 +9,7 @@ import hyprland.config;
 import hyprland.globals;
 import hyprland.layout;
 import hyprland.render;
+import hyprutils.math;
 import hyprutils.memory;
 import llvm.Support;
 import wm.Support;
@@ -21,6 +20,7 @@ using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
 using Config::Actions::eTogglableAction;
 using Config::Values::CFloatValue;
+using Hyprutils::Math::CBox;
 using Hyprutils::Memory::CSharedPointer, Hyprutils::Memory::makeUnique;
 
 using namespace wm;
