@@ -134,7 +134,7 @@ hl.config({
   fullscreen" and "tiled and fullscreen" other than to work around limitations
   in the built-in layouts[^2].)
 
-[Example binds](https://github.com/adityasz/dotfiles/blob/4b005be7d9979768b1af7a16a103815431189a2e/.config/hypr/keymap.lua).
+[Example binds](https://github.com/adityasz/dotfiles/blob/master/.config/hypr/keymap.lua).
 
 [^1]: Incremental builds (modifying just a few `.cpp` files) can be several
 times faster. Clean builds are also significantly sped up (even including the
