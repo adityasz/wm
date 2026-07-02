@@ -21,6 +21,11 @@
  * Functions that render windows and handle mouse input are hooked so that
  * windows render the way they are supposed to render. The hooks are untested
  * outside of my use cases (which include zero X11 windows among other quirks).
+ *
+ * Hyprland unfortunately requires too many overrides to get a usable baseline;
+ * GNOME/KDE would only require me to write a tiled layout, but both of them are
+ * worse in other ways (bugs, high CPU usage (even Hyprland is very
+ * inefficient), etc.). No good Wayland compositor :-(
  */
 
 module hooks;
@@ -77,7 +82,7 @@ struct Hook {
 
 namespace hooks {
 
-struct Actions_closeWindow : Hook<Actions_closeWindow> {
+struct Config_Actions_closeWindow : Hook<Config_Actions_closeWindow> {
 	static constexpr auto name = "closeWindow";
 
 	static ActionResult fn(std::optional<PHLWINDOW> w)
@@ -185,8 +190,8 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 		});
 
 		if (it == g_pCompositor->m_windows.end()) [[unlikely]] {
-			// does happen in the original code; side-effect of terrible code quality
-			// may be likely, who knows
+			// does happen in the original code: side-effect of terrible code quality.
+			// could even be [[likely]], who knows?
 			return thisptr->renderWorkspaceWindows(pMonitor, pWorkspace, time);
 		}
 
@@ -194,7 +199,9 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 
 		auto fullscreen_idx = std::distance(g_pCompositor->m_windows.begin(), it);
 
-		if ((*it)->effectiveAlpha() < 1.0f) {
+		if ((*it)->effectiveAlpha() < 1.0f
+		    || ((*it)->m_realSize && (*it)->m_realSize->isBeingAnimated())
+		    || ((*it)->m_realPosition && (*it)->m_realPosition->isBeingAnimated())) {
 			// windows below fullscreen window will be visible
 			for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
 				if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
@@ -205,7 +212,6 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 					thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
 			}
 		} else {
-			// fullscreen window is opaque
 			for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
 				// this also hides floating windows behind a maximized window that lie
 				// outside its bounds, e.g., a floating window covering some part of
@@ -413,8 +419,7 @@ bool register_hooks(void *handle)
 {
 	bool success = true;
 
-	success &= hooks::Actions_closeWindow::install(handle);
-
+	success &= hooks::Config_Actions_closeWindow::install(handle);
 #ifdef BETTER_FLOATING_BEHAVIOR
 	success &= hooks::IHyprRenderer_renderWorkspaceWindows::install(handle);
 	success &= hooks::IHyprRenderer_renderWorkspaceWindowsFullscreen::install(handle);
