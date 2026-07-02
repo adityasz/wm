@@ -64,7 +64,27 @@ public:
 	/// workspace if needed, or launch it.
 	ActionResult move_or_exec(const char *app_id, const char *command);
 	/// Toggle maximized/fullscreen. `mode` can be `FSMODE_{MAXIMIZED,FULLSCREEN}`.
-	ActionResult fullscreen(eFullscreenMode mode);
+	///
+	/// Hyprland requires tracking state in your head (which is fine for people
+	/// who don't do real work). E.g., a window that appears maximized can be
+	/// floating, floating and maximized, tiled, or tiled and maximized, and
+	/// each of these behaves differently. This dispatcher ensures all maximized
+	/// windows are floating (and remembers their previous state), making things
+	/// strictly (objectively) better in most cases (and equivalent in rare
+	/// cases).
+	///
+	/// Note that the default tiled layout has no way to tile a floating window
+	/// in a specific direction, so some previous behavior is lost due to this
+	/// layout limitation until I write a good layout myself.
+	///
+	/// Even when the client state is set with the built-in
+	/// `dsp.window.fullscreen_state` dispatcher, Hyprland can change the client
+	/// state of the window arbitrarily. I do not have clients that get affected
+	/// by this other than the case where `mode` is `FSMODE_FULLSCREEN`, which
+	/// is rare, and moving such clients to a separate workspace is good enough.
+	/// (Hyprland contains too many redundant code paths; writing a hook is not
+	/// feasible.)
+	ActionResult fullscreen(eFullscreenMode mode, bool toggle);
 
 	ActionResult dump_debug_info();
 

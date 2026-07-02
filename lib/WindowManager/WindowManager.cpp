@@ -205,7 +205,7 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	return {};
 }
 
-ActionResult WindowManager::fullscreen(eFullscreenMode mode)
+ActionResult WindowManager::fullscreen(eFullscreenMode mode, bool toggle)
 {
 	auto window = Desktop::focusState()->window();
 	if (!window) [[unlikely]] {
@@ -213,50 +213,65 @@ ActionResult WindowManager::fullscreen(eFullscreenMode mode)
 		    "No window is focused", eActionErrorLevel::ERROR, eActionErrorCode::NOT_FOUND
 		);
 	}
+
 	auto curr_mode = window->m_fullscreenState.internal;
-	if (curr_mode == eFullscreenMode::FSMODE_NONE) {
-		window_info_map[window.get()] = {
-		    .position = window->m_position,
-		    .size     = window->m_size,
-		    .floating = window->m_isFloating,
-		    .mode     = mode,
-		};
-		if (!window->m_isFloating)
-			auto _ = Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_ENABLE, window);
-		if (auto monitor = window->m_monitor.lock()) [[likely]] {
-			if (auto target = window->layoutTarget()) [[likely]] {
-				auto box = window->m_workspace->m_space->workArea(true);
-				auto reserved = window->getFullWindowReservedArea();
-				box.x += reserved.topLeft.x;
-				box.y += reserved.topLeft.y;
-				box.w -= reserved.topLeft.x + reserved.bottomRight.x;
-				box.h -= reserved.topLeft.y + reserved.bottomRight.y;
-				g_layoutManager->setTargetGeom(box, target);
-			}
-		}
-		return Config::Actions::fullscreenWindow(mode, window);
-	}
-	if (curr_mode == mode) {
+
+	eFullscreenMode desired_mode;
+	if (toggle && curr_mode == mode)
+		desired_mode = eFullscreenMode::FSMODE_NONE;
+	else
+		desired_mode = mode;
+
+	if (curr_mode == desired_mode) [[unlikely]]
+		return {};
+
+	if (desired_mode != eFullscreenMode::FSMODE_NONE) {
 		if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) {
-			auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, window);
-			if (it->second.floating) {
-				window->layoutTarget()->setPositionGlobal(
-				    CBox{it->second.position, it->second.size}
-				);
-			} else {
-				// no way to remember last floating position?
-				if (auto target = window->layoutTarget()) [[likely]]
-					target->rememberFloatingSize(it->second.size);
+			it->second.mode = desired_mode;
+		} else {
+			window_info_map.try_emplace(
+			    window.get(),
+			    WindowInfo{
+			        .position = window->m_position,
+			        .size     = window->m_size,
+			        .floating = window->m_isFloating,
+			        .mode     = desired_mode,
+			    }
+			);
+			if (!window->m_isFloating) {
 				auto _ =
-				    Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_DISABLE, window);
+				    Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_ENABLE, window);
 			}
-			window_info_map.erase(it);
-			return {};
+			if (auto monitor = window->m_monitor.lock()) [[likely]] {
+				if (auto target = window->layoutTarget()) [[likely]] {
+					auto box      = window->m_workspace->m_space->workArea(true);
+					auto reserved = window->getFullWindowReservedArea();
+					box.x        += reserved.topLeft.x;
+					box.y        += reserved.topLeft.y;
+					box.w        -= reserved.topLeft.x + reserved.bottomRight.x;
+					box.h        -= reserved.topLeft.y + reserved.bottomRight.y;
+					g_layoutManager->setTargetGeom(box, target);
+				}
+			}
 		}
+		return Config::Actions::fullscreenWindow(desired_mode, window);
 	}
-	if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) [[likely]]
-		it->second.mode = mode;
-	return Config::Actions::fullscreenWindow(mode, window);
+
+	if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) [[likely]] {
+		auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, window);
+		if (it->second.floating) {
+			window->layoutTarget()->setPositionGlobal(CBox{it->second.position, it->second.size});
+		} else {
+			// no way to remember last floating position?
+			if (auto target = window->layoutTarget()) [[likely]]
+				target->rememberFloatingSize(it->second.size);
+			auto _ = Config::Actions::floatWindow(eTogglableAction::TOGGLE_ACTION_DISABLE, window);
+		}
+		window_info_map.erase(it);
+		return {};
+	}
+
+	return Config::Actions::fullscreenWindow(desired_mode, window);
 }
 
 void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)

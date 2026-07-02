@@ -37,24 +37,41 @@ static int lua_wm_fullscreen_factory(lua_State *L)
 		mode = eFullscreenMode::FSMODE_MAXIMIZED;
 	} else if (mode_str == "fullscreen") {
 		mode = eFullscreenMode::FSMODE_FULLSCREEN;
+	} else if (mode_str == "disabled") {
+		mode = eFullscreenMode::FSMODE_NONE;
 	} else [[unlikely]] {
 		return Config::Lua::configError(
-		    L, "wm.fullscreen: mode must be \"maximized\" or \"fullscreen\""
+		    L, "wm.fullscreen: mode must be \"maximized\", \"fullscreen\", or \"disabled\""
 		);
 	}
 
+	bool toggle = mode == eFullscreenMode::FSMODE_NONE ? false : true;
+	if (!lua_isnoneornil(L, 2)) {
+		if (mode == eFullscreenMode::FSMODE_NONE) {
+			return Config::Lua::configError(
+			    L, "wm.fullscreen: toggle is not valid with \"disabled\""
+			);
+		}
+		if (!lua_isboolean(L, 2)) [[unlikely]] {
+			return Config::Lua::configError(L, "wm.fullscreen: toggle must be a boolean");
+		}
+		toggle = lua_toboolean(L, 2);
+	}
+
 	lua_pushinteger(L, static_cast<lua_Integer>(mode));
+	lua_pushboolean(L, toggle);
 	lua_pushcclosure(
 	    L,
 	    [](lua_State *L) {
 		    return Config::Lua::checkResult(
 		        L,
 		        window_manager->fullscreen(
-		            static_cast<eFullscreenMode>(lua_tointeger(L, lua_upvalueindex(1)))
+		            static_cast<eFullscreenMode>(lua_tointeger(L, lua_upvalueindex(1))),
+		            lua_toboolean(L, lua_upvalueindex(2))
 		        )
 		    );
 	    },
-	    1
+	    2
 	);
 	return 1;
 }
