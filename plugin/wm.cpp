@@ -37,7 +37,7 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 #endif
 
 	if (Config::mgr()->type() != Config::CONFIG_LUA) [[unlikely]]
-		init_die<"legacy config is not supported">(handle);
+		abort_init<"legacy config is not supported">(handle);
 
 	// TODO: fix the AppInfoLoader and get rid of this mess
 	auto icon_size_config =
@@ -50,9 +50,9 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 
 	register_listeners();
 	if (!register_dispatchers(handle)) [[unlikely]]
-		init_die<"failed to register dispatchers">(handle);
+		abort_init<"failed to register dispatchers">(handle);
 	if (!register_hooks(handle)) [[unlikely]]
-		init_die<"failed to register hooks">(handle);
+		abort_init<"failed to register hooks">(handle);
 
 	return {"wm", "a plugin that does a whole bunch of stuff", "Aditya", "0.1"};
 }

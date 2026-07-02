@@ -23,7 +23,7 @@ export namespace wm {
 
 template <ComptimeString FmtStr, typename... Args>
 [[noreturn]] [[gnu::visibility("hidden")]]
-void init_die(void *handle, Args &&...fmt_args)
+void abort_init(void *handle, Args &&...fmt_args)
 {
 	static constexpr auto fmt_str = ComptimeString{"[wm] Error: Initialization failed: "} + FmtStr;
 	auto                  err_msg = std::format(fmt_str.str, std::forward<Args>(fmt_args)...);
@@ -40,7 +40,7 @@ CSharedPointer<T> add_config(void *handle, const char *desc, U value)
 	if (HyprlandAPI::addConfigValueV2(handle, config_val))
 		return config_val;
 	static constexpr auto err = ComptimeString{"Failed to add config value for "} + name;
-	init_die<err>(handle);
+	abort_init<err>(handle);
 }
 
 template <typename T, ComptimeString Key, typename U>
