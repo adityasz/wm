@@ -35,6 +35,9 @@ The following options can be set when generating the build system:
   rendering and mouse input functions to treat `CCompositor::m_windows` as
   z-order. Disable hooks by turning off this option.
 
+- `-DBETTER_DRAG_BEHAVIOR=<ON|OFF>`: Drag a fullscreen/maximized window to make
+  it floating. Works when the `wm.fullscreen` [dispatcher](#dispatchers) is used.
+
 - `-DSWITCHER_MOD=<KEY>`: The modifier key to be held for using the app and
   window switchers [default for release build: `KEY_LEFTMETA`]. See
   [`/usr/include/linux/input-event-codes.h`](https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h)
@@ -144,7 +147,7 @@ time it takes to generate and build wrapper modules).
 built-in layouts, it may not go back to its previous spot. Also, Hyprland's
 built-in layouts are rudimentary (a binary tree is the wrong design). There is
 no way to tile a window in a certain direction, which is what is needed most of
-the time. Ideally, one spends enough time on a fullscreen window to not care
+the time. Usually, one spends enough time on a fullscreen window to not care
 about where it was tiled before it was fullscreened. Instead, one wants it to
 appear next to a certain other window. I will write a tree at some point in the
 future that fixes all of these issues (which only cost me one extra keypress a

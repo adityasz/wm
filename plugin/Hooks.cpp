@@ -14,17 +14,18 @@
  * find a use case where a floating window rendering behind a tiled window is
  * objectively the best solution. I don't see a reason to implement
  * `CWindow::m_alwaysOnTop` like functionality in this plugin since Hyprland
- * code is ugly (and therefore unstable), and I want as little maintenance as
- * possible. So, `CWindow::m_pinned` serves as a close enough (but semantically
- * different) workaround for when I want a window above all others.
+ * code is ugly and unstable, and I want as little maintenance as possible. So,
+ * `CWindow::m_pinned` serves as a close enough (but semantically different)
+ * workaround for when I want a window above all others.
  *
  * Functions that render windows and handle mouse input are hooked so that
  * windows render the way they are supposed to render. The hooks are untested
  * outside of my use cases (which include zero X11 windows among other quirks).
  *
  * Hyprland unfortunately requires too many overrides to get a usable baseline;
- * GNOME/KDE would only require me to write a tiled layout, but both of them are
- * worse in other ways (bugs, high CPU usage (even Hyprland is very
+ * GNOME/KDE have working focus and window order, so I will only have to write a
+ * tiling tree (which I will have to do in Hyprland as well), but both of them
+ * are worse in other ways (bugs, high CPU usage (even Hyprland is very
  * inefficient), etc.). No good Wayland compositor :-(
  */
 
@@ -38,6 +39,7 @@ import hyprland.config;
 import hyprland.desktop;
 import hyprland.event;
 import hyprland.globals;
+import hyprland.managers;
 import hyprland.layout;
 import hyprland.plugins;
 import hyprland.protocols;
@@ -168,9 +170,6 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
     : Hook<IHyprRenderer_renderWorkspaceWindowsFullscreen> {
 	static inline auto name = "renderWorkspaceWindowsFullscreen";
 
-	// The original function was ..., or as Trump would say:
-	// > It did a lot of redundant checks, it did a lot of redundant passes.
-	//
 	// The following treats CCompositor::m_windows to be in z-order. Any window
 	// below a fullscreen window is rendered only if it would be visible, and all
 	// windows above a fullscreen window are always rendered.
@@ -190,8 +189,7 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 		});
 
 		if (it == g_pCompositor->m_windows.end()) [[unlikely]] {
-			// does happen in the original code: side-effect of terrible code quality.
-			// could even be [[likely]], who knows?
+			// does happen in the original (upstream) code
 			return thisptr->renderWorkspaceWindows(pMonitor, pWorkspace, time);
 		}
 
@@ -413,6 +411,66 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 };
 #endif
 
+#ifdef BETTER_DRAG_BEHAVIOR
+struct CKeybindManager_changeMouseBindMode : Hook<CKeybindManager_changeMouseBindMode> {
+	static constexpr auto name = "changeMouseBindMode";
+
+	static SDispatchResult fn(eMouseBindMode MODE)
+	// clang-format off
+	{
+		if (MODE != MBIND_INVALID) {
+	        if (g_layoutManager->dragController()->target())
+	            return {};
+
+	        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
+	        const PHLWINDOW PWINDOW = g_pCompositor->vectorToWindowUnified(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
+	        if (!PWINDOW)
+	            return SDispatchResult{.passEvent = true, .error = ""};
+
+			if (auto it = window_manager->window_info_map.find(PWINDOW.get());
+			    it != window_manager->window_info_map.end()) [[likely]] {
+				auto final_size = it->second.size;
+				Vector2D final_pos;
+				if (auto target = PWINDOW->layoutTarget()) [[likely]] {
+					auto box = target->position();
+					auto [ox, oy] = box.pos();
+					auto [fs_w, fs_h] = box.size();
+					final_pos = {
+						MOUSECOORDS.x - (static_cast<double>(MOUSECOORDS.x - ox) / fs_w) * final_size.x,
+						MOUSECOORDS.y - (static_cast<double>(MOUSECOORDS.y - oy) / fs_h) * final_size.y
+					};
+				}
+				if (PWINDOW->isFullscreen())
+					auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, PWINDOW);
+				if (!it->second.floating) {
+					auto _ =
+						Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, PWINDOW);
+				}
+				if (auto target = PWINDOW->layoutTarget()) [[likely]]
+					g_layoutManager->setTargetGeom(CBox{final_pos, final_size}, target);
+				window_manager->window_info_map.erase(it);
+			}
+
+	        if (MODE == MBIND_MOVE) {
+	            if (PWINDOW->checkInputOnDecos(INPUT_TYPE_DRAG_START, MOUSECOORDS))
+	                return SDispatchResult{.passEvent = false, .error = ""};
+	        }
+
+	        g_layoutManager->beginDragTarget(PWINDOW->layoutTarget(), MODE);
+	    } else {
+	        if (!g_layoutManager->dragController()->target())
+	            return {};
+
+	        g_layoutManager->endDragTarget();
+	    }
+
+	    return {};
+	}
+	// clang-format on
+};
+#endif
+
 } // namespace hooks
 
 bool register_hooks(void *handle)
@@ -424,6 +482,9 @@ bool register_hooks(void *handle)
 	success &= hooks::IHyprRenderer_renderWorkspaceWindows::install(handle);
 	success &= hooks::IHyprRenderer_renderWorkspaceWindowsFullscreen::install(handle);
 	success &= hooks::CCompositor_vectorToWindowUnified::install(handle);
+#endif
+#ifdef BETTER_DRAG_BEHAVIOR
+	success &= hooks::CKeybindManager_changeMouseBindMode::install(handle);
 #endif
 
 	return success;

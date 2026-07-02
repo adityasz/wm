@@ -2,9 +2,14 @@ if(NOT HASH_CHECK)
     set_source_files_properties(wm.cpp PROPERTIES COMPILE_DEFINITIONS UNSAFE_SKIP_HASH_CHECK)
 endif()
 
+set(hooks_defs)
 if(BETTER_FLOATING_BEHAVIOR)
-    set_source_files_properties(Hooks.cpp PROPERTIES COMPILE_DEFINITIONS BETTER_FLOATING_BEHAVIOR)
+    list(APPEND hooks_defs BETTER_FLOATING_BEHAVIOR)
 endif()
+if(BETTER_DRAG_BEHAVIOR)
+    list(APPEND hooks_defs BETTER_DRAG_BEHAVIOR)
+endif()
+set_source_files_properties(Hooks.cpp PROPERTIES COMPILE_DEFINITIONS "${hooks_defs}")
 
 add_library(wm SHARED wm.cpp Dispatchers.cpp Hooks.cpp Listeners.cpp)
 target_sources(wm

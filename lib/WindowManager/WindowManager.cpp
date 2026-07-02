@@ -205,9 +205,10 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 	return {};
 }
 
-ActionResult WindowManager::fullscreen(eFullscreenMode mode, bool toggle)
+ActionResult
+WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional<PHLWINDOW> &w)
 {
-	auto window = Desktop::focusState()->window();
+	auto window = w.value_or(Desktop::focusState()->window());
 	if (!window) [[unlikely]] {
 		return actionError(
 		    "No window is focused", eActionErrorLevel::ERROR, eActionErrorCode::NOT_FOUND

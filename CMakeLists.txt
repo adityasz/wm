@@ -32,10 +32,11 @@ include(generate_modules)
 
 include_directories("${CMAKE_SOURCE_DIR}/include")
 
-set(SWITCHER_MOD KEY_LEFTMETA CACHE STRING "The modifier key for switching apps and windows" )
-option(DEBUG_LOGS "Enable debug logs" OFF)
-option(HASH_CHECK "Disable hash check" ON)
+set(SWITCHER_MOD KEY_LEFTMETA CACHE STRING "The modifier key for switching apps and windows")
+option(DEBUG_LOGS "Debug logs" OFF)
+option(HASH_CHECK "Check hash" ON)
 option(BETTER_FLOATING_BEHAVIOR "Read Hooks.cpp to figure out why" ON)
+option(BETTER_DRAG_BEHAVIOR "Unfullscreen a window if needed before dragging" ON)
 
 if(DEBUG_LOGS)
     add_compile_definitions(DEBUG_LOGS)
