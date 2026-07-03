@@ -59,7 +59,7 @@ concept HookImpl = requires {
 };
 
 template <typename Self>
-struct Hook {
+struct [[gnu::visibility("hidden")]] Hook {
 	static inline CFunctionHook *hook = nullptr;
 
 	static bool install(void *handle)
@@ -84,7 +84,8 @@ struct Hook {
 
 namespace hooks {
 
-struct Config_Actions_closeWindow : Hook<Config_Actions_closeWindow> {
+struct [[gnu::visibility("hidden")]] Config_Actions_closeWindow
+    : Hook<Config_Actions_closeWindow> {
 	static constexpr auto name = "closeWindow";
 
 	static ActionResult fn(std::optional<PHLWINDOW> w)
@@ -244,7 +245,8 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 
 using namespace Hyprutils::Math;
 
-struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnified> {
+struct [[gnu::visibility("hidden")]] CCompositor_vectorToWindowUnified
+    : Hook<CCompositor_vectorToWindowUnified> {
 	static constexpr auto name = "vectorToWindowUnified";
 
 	static PHLWINDOW
@@ -412,7 +414,8 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 #endif
 
 #ifdef BETTER_DRAG_BEHAVIOR
-struct CKeybindManager_changeMouseBindMode : Hook<CKeybindManager_changeMouseBindMode> {
+struct [[gnu::visibility("hidden")]] CKeybindManager_changeMouseBindMode
+    : Hook<CKeybindManager_changeMouseBindMode> {
 	static constexpr auto name = "changeMouseBindMode";
 
 	static SDispatchResult fn(eMouseBindMode MODE)
