@@ -39,11 +39,15 @@ class [[gnu::visibility("hidden")]] WindowManager {
 	StringPool                                  app_id_pool;
 	std::vector<const char *>                   app_id_focus_history;
 	absl::flat_hash_map<const char *, AppStuff> app_id_to_stuff_map;
-	absl::flat_hash_map<CWindow *, WindowInfo>  window_info_map;
-	WindowSwitcher                              window_switcher;
-	AppSwitcher                                 app_switcher;
-	AppInfoLoader                               app_info_loader;
-	WindowManagerConfig                         config;
+
+public:
+	absl::flat_hash_map<CWindow *, WindowInfo> window_info_map;
+
+private:
+	WindowSwitcher      window_switcher;
+	AppSwitcher         app_switcher;
+	AppInfoLoader       app_info_loader;
+	WindowManagerConfig config;
 
 public:
 	explicit WindowManager(const WindowManagerConfig &config);

@@ -230,12 +230,16 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 		if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) {
 			it->second.mode = desired_mode;
 		} else {
+			auto size     = window->m_size;
+			auto floating = window->m_isFloating;
+			if (auto target = window->layoutTarget(); !floating && target) [[likely]]
+				size = target->lastFloatingSize();
 			window_info_map.try_emplace(
 			    window.get(),
 			    WindowInfo{
 			        .position = window->m_position,
-			        .size     = window->m_size,
-			        .floating = window->m_isFloating,
+			        .size     = size,
+			        .floating = floating,
 			        .mode     = desired_mode,
 			    }
 			);
@@ -261,7 +265,8 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 	if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) [[likely]] {
 		auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, window);
 		if (it->second.floating) {
-			window->layoutTarget()->setPositionGlobal(CBox{it->second.position, it->second.size});
+			if (auto target = window->layoutTarget()) [[likely]]
+				g_layoutManager->setTargetGeom(CBox{it->second.position, it->second.size}, target);
 		} else {
 			// no way to remember last floating position?
 			if (auto target = window->layoutTarget()) [[likely]]
