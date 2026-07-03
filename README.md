@@ -4,6 +4,8 @@ A Hyprland plugin that improves window management.
 
 ## Installation
 
+The `master` branch is compatible with Hyprland v0.55.4.
+
 - Install [cxxmgen](https://github.com/adityasz/cxxmgen). Note that gcc does
   not like an export statement in a wrapper module because some Hyprland header
   does a `using identifier = (anonymous struct)` (instead of the usual `struct
@@ -151,5 +153,5 @@ the time. Usually, one spends enough time on a fullscreen window to not care
 about where it was tiled before it was fullscreened. Instead, one wants it to
 appear next to a certain other window. I will write a tree at some point in the
 future that fixes all of these issues (which only cost me one extra keypress a
-few dozen times a day, but the frustration is enough that the tree in my head
-will exist in code at some point).
+few times a day, but the frustration is enough that the tree in my head will
+exist in code at some point).
