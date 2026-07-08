@@ -14,8 +14,7 @@ import hyprutils.math;
 import hyprutils.memory;
 import absl;
 
-export import wm.AppSwitcher.AppInfoLoader;
-export import wm.AppSwitcher.Image;
+import wm.AppInfoLoader;
 
 using Config::Values::CColorValue;
 using Config::Values::CStringValue;
@@ -28,14 +27,13 @@ using Hyprutils::Memory::CUniquePointer;
 
 export namespace wm {
 
-struct AppRenderData {
-	std::string                      app_name;
-	CSharedPointer<Render::ITexture> icon_texture;
-};
+struct IconPending {};
 
 struct AppStuff {
-	llvm::SmallVector<PHLWINDOWREF>                     windows;
-	std::variant<std::future<AppInfo *>, AppRenderData> app_info;
+	llvm::SmallVector<PHLWINDOWREF>                                             windows;
+	std::string_view                                                            app_name;
+	// shared pointer is used because Hyprland "needs" it
+	std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>> icon_texture;
 };
 
 struct [[gnu::visibility("hidden")]] AppSwitcherConfig {
@@ -53,53 +51,74 @@ struct [[gnu::visibility("hidden")]] AppSwitcherConfig {
 	CSharedPointer<CFloatValue>  label_sep;
 	CSharedPointer<CFloatValue>  icon_size;
 	CSharedPointer<CFloatValue>  icon_sep;
+	CSharedPointer<CStringValue> icon_theme;
 
-	AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config);
+	AppSwitcherConfig(void *handle);
 };
 
 class [[gnu::visibility("hidden")]] AppSwitcher {
+public: // TODO: clean (zero-overhead) abstractions without duplicating methods
+	AppInfoLoader app_info_loader;
+
+private:
+	// shared pointer is used because Hyprland "needs" it
+	absl::flat_hash_map<
+	    const char *,
+	    std::variant<std::monostate, std::future<Image>, CSharedPointer<Render::ITexture>>>
+	                                                   icon_texture_cache;
 	std::vector<const char *>                         *app_id_focus_history;
 	absl::flat_hash_map<const char *, AppStuff>       *app_stuff_map;
 	std::chrono::time_point<std::chrono::system_clock> first_tab_press;
 	wl_event_source                                   *timer;
+	bool                                               active;
+	bool                                               visible;
 
+public:
+	bool dirty;
+
+private:
+	int      idx;
+	uint32_t max_entries;
+
+	int         container_radius;
+	int         selection_radius;
 	CHyprColor  container_background_color;
-	CHyprColor  container_border_color;
 	CHyprColor  selection_background_color;
-	CHyprColor  font_color;
-	std::string font_family;
-	double      font_height;
-	double      label_sep;
-	double      icon_size;
-	double      icon_sep;
+	CHyprColor  container_border_color;
 	double      container_border_width;
 	double      container_padding;
 	double      selection_padding;
-	int         container_radius;
-	int         selection_radius;
+	double      icon_size;
+	double      icon_sep;
+	double      label_sep;
+	std::string font_family;
+	CHyprColor  font_color;
+	double      font_height;
 	int         font_size;
 
-	int  idx;
-	bool visible;
-	bool active;
+	AppSwitcherConfig config;
 
 public:
 	explicit AppSwitcher(const AppSwitcherConfig &config);
 
-	void reset_config(const AppSwitcherConfig &config);
+	void reset_config();
 
 	void activate(
 	    std::vector<const char *>                   *app_id_focus_history,
 	    absl::flat_hash_map<const char *, AppStuff> *app_stuff_map
 	);
+	[[nodiscard]] bool is_active() const;
 	void               highlight_next(bool backwards);
 	void               focus_selected();
 	void               deactivate();
-	[[nodiscard]] bool is_active() const;
 	void               on_close_app(const char *closing_app_id);
+	std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>>
+	     load_app_icon(const char *app_id);
+	void prune_cache(std::span<const char *> app_ids_to_keep);
 
 private:
-	void                                              load_icon_textures() const;
+	void                                              load_config();
+	void                                              load_icon_textures();
 	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
 	[[gnu::hot]] void                                 render();
 
@@ -112,11 +131,11 @@ public:
 	explicit AppSwitcherPassElement(AppSwitcher *instance);
 	~AppSwitcherPassElement() override = default;
 
-	std::vector<CUniquePointer<IPassElement>> draw() override;
-	bool                                      needsLiveBlur() override;
-	bool                                      needsPrecomputeBlur() override;
-	std::optional<CBox>                       boundingBox() override;
-	CRegion                                   opaqueRegion() override;
+	[[gnu::hot]] std::vector<CUniquePointer<IPassElement>> draw() override;
+	bool                                                   needsLiveBlur() override;
+	bool                                                   needsPrecomputeBlur() override;
+	std::optional<CBox>                                    boundingBox() override;
+	CRegion                                                opaqueRegion() override;
 
 	static constexpr const char *pass_name = "AppSwitcherPassElement";
 

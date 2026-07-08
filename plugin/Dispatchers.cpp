@@ -12,7 +12,7 @@ import hyprland.plugins;
 
 import globals;
 
-import wm.Support;
+import wm.Support.ComptimeString;
 
 using namespace wm;
 

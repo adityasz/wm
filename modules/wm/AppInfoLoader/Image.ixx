@@ -1,4 +1,4 @@
-export module wm.AppSwitcher.Image;
+export module wm.AppInfoLoader.Image;
 
 import std;
 
@@ -19,5 +19,5 @@ struct Image {
 	ImageFormat                format;
 };
 
-[[gnu::visibility("hidden")]] Image read_image(const std::string &path, int size);
+[[gnu::visibility("hidden")]] Image read_image(const char *path, int size);
 } // namespace wm

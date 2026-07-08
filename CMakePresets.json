@@ -22,9 +22,15 @@
 			"binaryDir": "${sourceDir}/build/debug",
 			"cacheVariables": {
 				"CMAKE_BUILD_TYPE": "Debug",
-				"DEBUG_LOGS": "ON",
-				"SWITCHER_MOD": "KEY_LEFTALT"
+				"DEBUG_LOGS": "ON"
 			}
+		},
+		{
+			"name": "debug-nested-build",
+			"inherits": "debug-build",
+			"description": "Debug build for testing in a nested session",
+			"binaryDir": "${sourceDir}/build/debugnested",
+			"cacheVariables": { "SWITCHER_MOD": "KEY_LEFTALT" }
 		},
 		{
 			"name": "release-build",
@@ -32,13 +38,6 @@
 			"description": "Release build",
 			"binaryDir": "${sourceDir}/build/release",
 			"cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
-		},
-		{
-			"name": "rel-with-deb-info-build",
-			"inherits": "base",
-			"description": "RelWithDebInfo build",
-			"binaryDir": "${sourceDir}/build/relwithdebinfo",
-			"cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo" }
 		}
 	]
 }

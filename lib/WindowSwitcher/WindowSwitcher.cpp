@@ -8,7 +8,8 @@ import std;
 import hyprland.globals;
 import hyprland.desktop;
 import hyprland.render;
-import wm.Support;
+import wm.Support.Logging;
+import wm.Support.Utils;
 
 using std::size_t;
 

@@ -9,7 +9,10 @@ module wm.AppSwitcher;
 import std;
 import hyprland.globals;
 import hyprland.render;
-import wm.Support;
+
+import wm.AppInfoLoader;
+import wm.Support.Logging;
+import wm.Support.Utils;
 
 using namespace wm;
 using namespace std::chrono_literals;
@@ -20,7 +23,7 @@ using Render::GL::g_pHyprOpenGL;
 using Render::GL::CHyprOpenGLImpl;
 
 
-AppSwitcherConfig::AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> icon_size_config) :
+AppSwitcherConfig::AppSwitcherConfig(void *handle) :
     container_background_color(
         add_config<CColorValue, "app_switcher:container:background_color">(handle, 0x11'ff'ff'ff)
     ),
@@ -41,19 +44,73 @@ AppSwitcherConfig::AppSwitcherConfig(void *handle, CSharedPointer<CFloatValue> i
     font_color(add_config<CColorValue, "app_switcher:label:font_color">(handle, 0xff'ff'ff)),
     font_size(add_config<CIntValue, "app_switcher:label:font_size">(handle, 0)),
     label_sep(add_config<CFloatValue, "app_switcher:label:separation">(handle, 0)),
-    icon_size(std::move(icon_size_config)),
-    icon_sep(add_config<CFloatValue, "app_switcher:icons:separation">(handle, 40))
+    icon_size(add_config<CFloatValue, "app_switcher:icons:size">(handle, 120)),
+    icon_sep(add_config<CFloatValue, "app_switcher:icons:separation">(handle, 40)),
+    icon_theme(add_config<CStringValue, "app_switcher:icons:theme">(handle, ""))
 {}
 
 AppSwitcher::AppSwitcher(const AppSwitcherConfig &config) :
+    app_info_loader(
+        AppInfoLoaderConfig{
+            .icon_size = config.icon_size->value(), .icon_theme = config.icon_theme->value()
+        }
+    ),
     app_id_focus_history(nullptr),
     app_stuff_map(nullptr),
     timer(nullptr),
+    active(false),
+    visible(false),
+    dirty(false),
     idx(0),
-    active(false)
-{ reset_config(config); }
+    max_entries(20),
+    config(config)
+{
+	icon_texture_cache.reserve(max_entries);
+	load_config();
+}
 
-bool AppSwitcher::is_active() const { return active; }
+void AppSwitcher::load_config()
+{
+	container_background_color =
+	    CHyprColor{static_cast<uint64_t>(config.container_background_color->value())};
+	container_border_color =
+	    CHyprColor{static_cast<uint64_t>(config.container_border_color->value())};
+	container_padding      = config.container_padding->value();
+	container_radius       = config.container_radius->value();
+	container_border_width = config.container_border_width->value();
+
+	selection_background_color =
+	    CHyprColor{static_cast<uint64_t>(config.selection_background_color->value())};
+	selection_padding = config.selection_padding->value();
+	selection_radius  = static_cast<int>(config.selection_radius->value());
+
+	font_family = config.font_family->value();
+	font_color  = CHyprColor{static_cast<uint64_t>(config.font_color->value())};
+	font_size   = static_cast<int>(config.font_size->value());
+	label_sep   = config.label_sep->value();
+
+	icon_size = config.icon_size->value();
+	icon_sep  = config.icon_sep->value();
+
+	font_height = 0;
+	if (font_size) {
+		if (auto texture =
+		        g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family))
+		    [[likely]] {
+			font_height = texture->m_size.y;
+		} else [[unlikely]] {
+			log<LogLevel::CRIT, "could not create font texture; is {} a valid font?">(font_family);
+		}
+	}
+}
+
+void AppSwitcher::reset_config()
+{
+	load_config();
+	app_info_loader.reset_config(
+	    {.icon_size = icon_size, .icon_theme = config.icon_theme->value()}
+	);
+}
 
 void AppSwitcher::activate(
     std::vector<const char *>                   *app_id_focus_history,
@@ -69,25 +126,30 @@ void AppSwitcher::activate(
 
 	active = true;
 
-	timer = wl_event_loop_add_timer(
-	    g_pCompositor->m_wlEventLoop,
-	    [](void *data) {
-		    auto *self = static_cast<AppSwitcher *>(data);
-		    if (auto res = self->get_container_box(); res.has_value())
-			    g_pHyprRenderer->damageRegion(res.value());
-		    return 0;
-	    },
-	    this
-	);
-	wl_event_source_timer_update(timer, 100);
+	if (!dirty) [[likely]] {
+		timer = wl_event_loop_add_timer(
+		    g_pCompositor->m_wlEventLoop,
+		    [](void *data) {
+			    auto *self = static_cast<AppSwitcher *>(data);
+			    if (auto res = self->get_container_box(); res.has_value())
+				    g_pHyprRenderer->damageRegion(res.value());
+			    return 0;
+		    },
+		    this
+		);
+		wl_event_source_timer_update(timer, 100);
+	}
 
 	log<LogLevel::TRACE, "show: {}">(*app_id_focus_history);
 	this->idx                  = 0;
 	this->app_id_focus_history = app_id_focus_history;
 	this->app_stuff_map        = app_stuff_map;
 
-	load_icon_textures();
+	if (!dirty) [[likely]]
+		load_icon_textures();
 }
+
+bool AppSwitcher::is_active() const { return active; }
 
 void AppSwitcher::highlight_next(bool backwards)
 {
@@ -123,8 +185,10 @@ void AppSwitcher::focus_selected()
 
 void AppSwitcher::deactivate()
 {
-	wl_event_source_remove(timer);
-	timer   = nullptr;
+	if (timer) [[likely]] {
+		wl_event_source_remove(timer);
+		timer = nullptr;
+	}
 	active  = false;
 	visible = false;
 }
@@ -169,6 +233,9 @@ void AppSwitcher::render()
 		log<LogLevel::DEBUG, "monitor {} is null">(Desktop::focusState()->monitor().get());
 		return;
 	}
+
+	if (dirty) [[unlikely]]
+		return;
 
 	if (!visible) {
 		if (std::chrono::system_clock::now() - first_tab_press < 100ms)
@@ -230,14 +297,16 @@ void AppSwitcher::render()
 		}
 
 		auto &[_, app_stuff] = *app_stuff_map->find(app_id); // must exist
-		auto data_ptr        = std::get_if<AppRenderData>(&app_stuff.app_info);
-		if (!data_ptr) {
-			log<LogLevel::DEBUG, "AppSwitcher: data not available for class={}">(app_id);
+		auto app_name        = app_stuff.app_name;
+		auto texture_ptr = std::get_if<CSharedPointer<Render::ITexture>>(&app_stuff.icon_texture);
+		if (!texture_ptr) [[unlikely]] {
+			log<LogLevel::TRACE, "AppSwitcher: data not available for class={}">(app_id);
 			icon_x     += icon_size + icon_sep;
 			text_box.x += icon_size + icon_sep;
+			icon_box.x += icon_size + icon_sep;
 			continue;
 		}
-		auto &[app_name, icon_texture] = *data_ptr;
+		auto icon_texture = *texture_ptr;
 
 		if (icon_texture && icon_texture->m_texID) {
 			CRegion                             damage = icon_box;
@@ -253,8 +322,9 @@ void AppSwitcher::render()
 		icon_box.x += icon_size + icon_sep;
 
 		// Draw label
-		if (auto text_texture =
-		        g_pHyprRenderer->renderText(app_name, font_color, font_size, false, font_family)) {
+		if (auto text_texture = g_pHyprRenderer->renderText(
+		        std::string{app_name}, font_color, font_size, false, font_family
+		    )) {
 			double text_width                          = text_texture->m_size.x;
 			text_box.x                                -= text_width / 2.0;
 			text_box.w                                 = text_width;
@@ -278,92 +348,120 @@ void AppSwitcher::render()
 	g_pHyprRenderer->damageMonitor(monitor);
 }
 
-void AppSwitcher::reset_config(const AppSwitcherConfig &config)
+void AppSwitcher::load_icon_textures()
 {
-	container_background_color =
-	    CHyprColor{static_cast<uint64_t>(config.container_background_color->value())};
-	container_border_color =
-	    CHyprColor{static_cast<uint64_t>(config.container_border_color->value())};
-	container_padding      = config.container_padding->value();
-	container_radius       = config.container_radius->value();
-	container_border_width = config.container_border_width->value();
-
-	selection_background_color =
-	    CHyprColor{static_cast<uint64_t>(config.selection_background_color->value())};
-	selection_padding = config.selection_padding->value();
-	selection_radius  = static_cast<int>(config.selection_radius->value());
-
-	font_family = config.font_family->value();
-	font_color  = CHyprColor{static_cast<uint64_t>(config.font_color->value())};
-	font_size   = static_cast<int>(config.font_size->value());
-	label_sep   = config.label_sep->value();
-
-	icon_size = config.icon_size->value();
-	icon_sep  = config.icon_sep->value();
-
-	font_height = 0;
-	if (font_size) {
-		if (auto texture =
-		        g_pHyprRenderer->renderText("X", font_color, font_size, false, font_family))
-		    [[likely]] {
-			font_height = texture->m_size.y;
-		} else [[unlikely]] {
-			log<LogLevel::CRIT, "could not create font texture; is {} a valid font?">(font_family);
+	for (auto &[app_id, app_stuff] : *app_stuff_map) {
+		if (std::holds_alternative<CSharedPointer<Render::ITexture>>(app_stuff.icon_texture)
+		    || std::holds_alternative<std::monostate>(app_stuff.icon_texture)) {
+			continue;
 		}
+
+		auto it = icon_texture_cache.find(app_id);
+		if (it == icon_texture_cache.end()) [[unlikely]]
+			continue;
+
+		auto *future = std::get_if<std::future<Image>>(&it->second);
+		if (!future)
+			continue;
+
+		if (future->wait_for(0s) != std::future_status::ready) [[unlikely]]
+			continue;
+
+		auto icon = future->get();
+		if (!icon.buffer) [[unlikely]] {
+			it->second             = std::monostate{};
+			app_stuff.icon_texture = std::monostate{};
+			continue;
+		}
+
+		auto texture    = g_pHyprRenderer->createTexture();
+		texture->m_size = {static_cast<double>(icon.width), static_cast<double>(icon.height)};
+
+		glGenTextures(1, &texture->m_texID);
+		glBindTexture(GL_TEXTURE_2D, texture->m_texID);
+
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		auto format = icon.format != ImageFormat::RGB ? GL_RGBA : GL_RGB;
+		switch (icon.format) {
+		case ImageFormat::RGB:  format = GL_RGB; break;
+		case ImageFormat::BGRA: [[fallthrough]]; // swizzling done later
+		case ImageFormat::RGBA: format = GL_RGBA; break;
+		}
+		glTexImage2D(
+		    GL_TEXTURE_2D,
+		    0,
+		    format,
+		    icon.width,
+		    icon.height,
+		    0,
+		    format,
+		    GL_UNSIGNED_BYTE,
+		    icon.buffer.get()
+		);
+		if (icon.format == ImageFormat::BGRA) {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
+		}
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		it->second             = texture;
+		app_stuff.icon_texture = texture;
 	}
 }
 
-void AppSwitcher::load_icon_textures() const
+std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>>
+AppSwitcher::load_app_icon(const char *app_id)
 {
-	for (auto &app_stuff : *app_stuff_map | std::views::values) {
-		auto &[_, app_info] = app_stuff;
-		if (auto future = std::get_if<std::future<AppInfo *>>(&app_info)) {
-			if (future->wait_for(0s) != std::future_status::ready) [[unlikely]]
-				continue;
-			if (auto app_info_ptr = future->get(); !app_info_ptr->icon.buffer) [[unlikely]] {
-				app_info = AppRenderData{app_info_ptr->name, {}};
-			} else {
-				auto &icon      = app_info_ptr->icon;
-				auto  texture   = g_pHyprRenderer->createTexture();
-				texture->m_size = {
-				    static_cast<double>(icon.width), static_cast<double>(icon.height)
-				};
-
-				glGenTextures(1, &texture->m_texID);
-				glBindTexture(GL_TEXTURE_2D, texture->m_texID);
-
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-				glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-				auto format = icon.format != ImageFormat::RGB ? GL_RGBA : GL_RGB;
-				switch (icon.format) {
-				case ImageFormat::RGB:  format = GL_RGB; break;
-				case ImageFormat::BGRA: // swizzling done later
-				case ImageFormat::RGBA: format = GL_RGBA; break;
-				}
-				glTexImage2D(
-				    GL_TEXTURE_2D,
-				    0,
-				    format,
-				    icon.width,
-				    icon.height,
-				    0,
-				    format,
-				    GL_UNSIGNED_BYTE,
-				    icon.buffer.get()
-				);
-				if (icon.format == ImageFormat::BGRA) {
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_R, GL_BLUE);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_G, GL_GREEN);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_RED);
-					glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_A, GL_ALPHA);
-				}
-				glBindTexture(GL_TEXTURE_2D, 0);
-
-				app_info = AppRenderData{app_info_ptr->name, texture};
-			}
+	auto [it, inserted] = icon_texture_cache.try_emplace(app_id, std::monostate{});
+	if (inserted) {
+		if (auto icon = app_info_loader.get_app_icon(app_id)) [[likely]] {
+			it->second = std::move(*icon);
+			return IconPending{};
 		}
+		return {};
+	}
+	return std::visit(
+	    [](auto &value)
+	        -> std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>> {
+		    using T = std::decay_t<decltype(value)>;
+		    if constexpr (std::is_same_v<T, std::monostate>)
+			    return {};
+		    else if constexpr (std::is_same_v<T, std::future<Image>>)
+			    return IconPending{};
+		    else if constexpr (std::is_same_v<T, CSharedPointer<Render::ITexture>>)
+			    return value;
+	    },
+	    it->second
+	);
+}
+
+void AppSwitcher::prune_cache(std::span<const char *> app_ids_to_keep)
+{
+	max_entries = std::max(20uz, app_ids_to_keep.size() + app_ids_to_keep.size() / 4);
+	if (icon_texture_cache.size() <= max_entries) [[likely]]
+		return;
+
+	size_t size_before_pruning = icon_texture_cache.size();
+	for (auto it = icon_texture_cache.begin(); it != icon_texture_cache.end();) {
+		if (icon_texture_cache.size() == std::max(20uz, app_ids_to_keep.size()))
+			break;
+		if (!std::ranges::contains(app_ids_to_keep, it->first))
+			icon_texture_cache.erase(it++);
+		else
+			++it;
+	}
+
+	if (icon_texture_cache.size() * 2 < size_before_pruning
+	    && icon_texture_cache.size() <= max_entries) {
+		icon_texture_cache = decltype(icon_texture_cache)(
+		    std::make_move_iterator(icon_texture_cache.begin()),
+		    std::make_move_iterator(icon_texture_cache.end())
+		);
 	}
 }

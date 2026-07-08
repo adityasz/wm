@@ -1,52 +1,106 @@
 module;
 
+#include <cassert>
 #include <linux/input-event-codes.h>
 
 module wm.WindowManager;
 
 import std;
+import llvm.Support;
+
 import hyprland.config;
 import hyprland.globals;
 import hyprland.layout;
 import hyprland.render;
 import hyprutils.math;
 import hyprutils.memory;
-import llvm.Support;
-import wm.Support;
+
+import wm.Support.Logging;
+import wm.Support.Utils;
 
 using Config::Actions::ActionResult;
 using Config::Actions::actionError;
 using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
 using Config::Actions::eTogglableAction;
-using Config::Values::CFloatValue;
 using Hyprutils::Math::CBox;
 using Hyprutils::Memory::CSharedPointer, Hyprutils::Memory::makeUnique;
 
 using namespace wm;
 
-WindowManagerConfig::WindowManagerConfig(
-    void *handle, const CSharedPointer<CFloatValue> &icon_size_config
-) :
-    app_switcher({handle, icon_size_config}),
-    app_info_loader({handle, icon_size_config})
-{}
+WindowManagerConfig::WindowManagerConfig(void *handle) : app_switcher(handle) {}
 
-WindowManager::WindowManager(const WindowManagerConfig &config) :
-    app_switcher(config.app_switcher),
-    app_info_loader(config.app_info_loader),
-    config(config)
+std::tuple<const char *, std::string_view, DesktopFileStatus>
+WindowManager::resolve_app_id(std::string_view hl_class)
+{
+	if (!app_switcher.app_info_loader.is_available()) [[unlikely]] {
+		app_switcher.dirty = true;
+		return {app_id_pool.get(hl_class).first, std::string_view{}, DesktopFileStatus::Scanning};
+	}
+	if (app_switcher.dirty) [[unlikely]] {
+		// this code path is unlikely to ever run since scanning desktop files is very fast,
+		// unless the plugin was loaded with windows already open
+		absl::flat_hash_map<const char *, AppStuff> new_stuff_map;
+		new_stuff_map.reserve(app_id_to_stuff_map.capacity());
+		for (auto &app_id : app_id_focus_history) {
+			auto [app_id_new, name] = app_switcher.app_info_loader.get_app_info(app_id);
+			if (app_id_new) [[likely]] {
+				auto [it, _] = new_stuff_map.emplace(
+				    app_id_new, std::move(app_id_to_stuff_map.find(app_id)->second)
+				);
+				it->second.icon_texture = app_switcher.load_app_icon(app_id_new);
+				app_id_pool.remove(app_id);
+				app_id = app_id_new;
+			} else {
+				auto [it, _] = new_stuff_map.emplace(
+				    app_id, std::move(app_id_to_stuff_map.find(app_id)->second)
+				);
+				it->second.icon_texture = std::monostate{};
+			}
+		}
+		app_id_to_stuff_map = std::move(new_stuff_map);
+		app_switcher.dirty  = false;
+	}
+	auto [app_id, name]                   = app_switcher.app_info_loader.get_app_info(hl_class);
+	DesktopFileStatus desktop_file_status = DesktopFileStatus::HasDesktopFile;
+	if (!app_id) [[unlikely]] {
+		desktop_file_status = DesktopFileStatus::NoDesktopFile;
+		app_id              = app_id_pool.get(hl_class).first;
+	}
+	return {app_id, name, desktop_file_status};
+}
+
+AppEntryResult WindowManager::get_or_create_app_entry(std::string_view hl_class)
+{
+	auto [app_id, name, desktop_file_status] = resolve_app_id(hl_class);
+
+	auto res = app_id_to_stuff_map.try_emplace(
+	    app_id, llvm::SmallVector<PHLWINDOWREF>{}, name, std::monostate{}
+	);
+
+	auto &[it, inserted] = res;
+	if (inserted) {
+		app_id_focus_history.push_back(app_id);
+		switch (desktop_file_status) {
+		case DesktopFileStatus::HasDesktopFile:
+			it->second.icon_texture = app_switcher.load_app_icon(app_id);
+			break;
+		case DesktopFileStatus::NoDesktopFile: it->second.icon_texture = {}; break;
+		case DesktopFileStatus::Scanning:      break;
+		}
+	}
+
+	return res;
+}
+
+WindowManager::WindowManager(const WindowManagerConfig &config) : app_switcher(config.app_switcher)
 {
 	window_info_map.reserve(10);
 	app_id_to_stuff_map.reserve(20);
 	for (const auto &window :
 	     Desktop::History::windowTracker()->fullHistory() | std::views::reverse) {
-		auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
-		if (inserted) {
-			app_id_focus_history.push_back(app_id);
-			app_id_to_stuff_map[app_id].app_info = app_info_loader.get_app_info(app_id, app_id);
-		}
-		app_id_to_stuff_map[app_id].windows.push_back(window);
+		auto [it, _] = get_or_create_app_entry(window->m_initialClass);
+		it->second.windows.push_back(window);
 	}
 }
 
@@ -57,31 +111,23 @@ void WindowManager::reset_config()
 	if (window_switcher.is_active()) [[unlikely]]
 		window_switcher.deactivate();
 
-	app_switcher.reset_config(config.app_switcher);
-	app_info_loader.reset_config(config.app_info_loader);
+	app_switcher.reset_config();
 }
 
 void WindowManager::on_open_window(const PHLWINDOW &window)
 {
 	if (!window)
 		return;
-	auto [app_id, inserted] = app_id_pool.get(window->m_initialClass);
+
+	auto [it, inserted] = get_or_create_app_entry(window->m_initialClass);
+	auto &app_windows   = it->second.windows;
 	if (inserted) {
-		auto [it_new, _] = app_id_to_stuff_map.try_emplace(app_id);
-		it_new->second.windows.push_back(window);
-		it_new->second.app_info = app_info_loader.get_app_info(app_id, app_id);
-		app_id_focus_history.push_back(app_id);
-		if (window_switcher.is_active()) [[unlikely]] {
-			window_switcher.update_app_windows(
-			    &app_id_to_stuff_map.find(window_switcher.current_app_id())->second.windows
-			);
-		}
-	} else if (
-	    auto &windows = app_id_to_stuff_map.find(app_id)->second.windows;
-	    !std::ranges::contains(windows, window)
-	) {
-		// Hyprland calls this twice sometimes
-		windows.push_back(window);
+		app_windows.push_back(window);
+		if (window_switcher.is_active()) [[unlikely]]
+			window_switcher.update_app_windows(&app_windows);
+	} else {
+		assert(!std::ranges::contains(app_windows, window));
+		app_windows.push_back(window);
 	}
 }
 
@@ -98,34 +144,19 @@ void WindowManager::maybe_restore_fullscreen(const PHLWINDOW &window) const
 
 void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason)
 {
-	// active event can be emitted after close event in 0.55.4:
-	// https://github.com/hyprwm/Hyprland/blob/v0.55.4/src/desktop/view/Window.cpp#L2437
-	// focus reason is "other", and I don't expect this to be the only place
-	// where this reason is used; so, check if the window is mapped instead:
-	if (!window || !window->m_isMapped)
+	if (!window)
 		return;
 	if (window_switcher.is_active()) {
 		log<LogLevel::TRACE, "window switcher is active, ignoring touch">();
 		return;
 	}
-	auto [app_id, new_app] = app_id_pool.get(window->m_initialClass);
-	if (new_app) {
-		auto [it_new, _] = app_id_to_stuff_map.try_emplace(app_id);
-		it_new->second.windows.push_back(window);
-		it_new->second.app_info = app_info_loader.get_app_info(app_id, app_id);
-		app_id_focus_history.insert(app_id_focus_history.begin(), app_id);
-	} else {
-		auto &windows   = app_id_to_stuff_map.find(app_id)->second.windows;
-		auto  app_id_it = std::ranges::find(app_id_focus_history, app_id);
-		std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
-		if (auto window_it = std::ranges::find(windows, window); window_it != windows.end()) {
-			std::rotate(windows.begin(), window_it, window_it + 1);
-		} else {
-			// active event emitted before open event, which does happen in 0.55.4
-			windows.insert(windows.begin(), window);
-			return;
-		}
-	}
+	auto [app_id, _, _] = resolve_app_id(window->m_initialClass);
+	auto &windows       = app_id_to_stuff_map.find(app_id)->second.windows;
+	auto  app_id_it     = std::ranges::find(app_id_focus_history, app_id);
+	assert(app_id_it != app_id_focus_history.end());
+	std::rotate(app_id_focus_history.begin(), app_id_it, app_id_it + 1);
+	auto window_it = std::ranges::find(windows, window);
+	std::rotate(windows.begin(), window_it, window_it + 1);
 	maybe_restore_fullscreen(window);
 }
 
@@ -133,53 +164,64 @@ void WindowManager::on_close_window(const PHLWINDOW &window)
 {
 	if (!window)
 		return;
-	const char *app_id = app_id_pool.find(window->m_initialClass);
-	if (!app_id) [[unlikely]]
+	auto [app_id, _, foo] = resolve_app_id(window->m_initialClass);
+	auto it               = app_id_to_stuff_map.find(app_id);
+	// Hyprland can emit window.destroy before window.openEarly
+	if (it == app_id_to_stuff_map.end())
 		return;
-	auto &windows = app_id_to_stuff_map.find(app_id)->second.windows;
+	auto &windows = it->second.windows;
 	if (window_switcher.is_active()) [[unlikely]]
 		window_switcher.on_close_window(window);
+	assert(std::ranges::contains(windows, window));
 	llvm::erase(windows, window);
 	if (windows.empty()) {
 		if (app_switcher.is_active()) [[unlikely]]
 			app_switcher.on_close_app(app_id);
 		app_id_to_stuff_map.erase(app_id);
 		std::erase(app_id_focus_history, app_id);
-		app_info_loader.prune(app_id_focus_history);
-		app_id_pool.remove(app_id);
+		app_switcher.prune_cache(app_id_focus_history);
+		if (foo == DesktopFileStatus::NoDesktopFile || foo == DesktopFileStatus::Scanning)
+		    [[unlikely]] {
+			app_id_pool.remove(app_id);
+		}
 	}
 	window_info_map.erase(window.get());
 }
 
-ActionResult WindowManager::focus_or_exec(const char *app_id, const char *command)
+std::variant<PHLWINDOW, ActionResult>
+WindowManager::find_window_or_spawn(const char *app_id, const char *command)
 {
-	const char *app_id_ptr = app_id_pool.find(app_id);
-	if (!app_id_ptr) {
+	auto [app_id_ptr, _, _] = resolve_app_id(app_id);
+	auto it                 = app_id_to_stuff_map.find(app_id_ptr);
+	if (it == app_id_to_stuff_map.end()) {
 		if (Config::Supplementary::executor()->spawn(command)) [[likely]]
-			return {};
+			return ActionResult{};
 		return actionError(
 		    std::format("Failed to spawn {}", command),
 		    eActionErrorLevel::ERROR,
 		    eActionErrorCode::EXECUTION_FAILED
 		);
 	}
-	focus_and_raise_window(app_id_to_stuff_map.find(app_id_ptr)->second.windows.front().lock());
-	return {};
+	return it->second.windows.front().lock();
+}
+
+ActionResult WindowManager::focus_or_exec(const char *app_id, const char *command)
+{
+	auto ret = find_window_or_spawn(app_id, command);
+	if (auto window = std::get_if<PHLWINDOW>(&ret)) {
+		focus_and_raise_window(*window);
+		return {};
+	}
+	return std::get<ActionResult>(ret);
 }
 
 ActionResult WindowManager::move_or_exec(const char *app_id, const char *command)
 {
-	const char *app_id_ptr = app_id_pool.find(app_id);
-	if (!app_id_ptr) {
-		if (Config::Supplementary::executor()->spawn(command)) [[likely]]
-			return {};
-		return actionError(
-		    std::format("Failed to spawn {}", command),
-		    eActionErrorLevel::ERROR,
-		    eActionErrorCode::EXECUTION_FAILED
-		);
-	}
-	auto window  = app_id_to_stuff_map.find(app_id_ptr)->second.windows.front().lock();
+	auto ret = find_window_or_spawn(app_id, command);
+	if (auto res = std::get_if<ActionResult>(&ret))
+		return *res;
+
+	auto window  = std::get<PHLWINDOW>(ret);
 	auto monitor = Desktop::focusState()->monitor();
 	if (!monitor) [[unlikely]] {
 		return actionError(
@@ -348,9 +390,7 @@ void WindowManager::handle_window_switching(bool backwards)
 		auto last_window = Desktop::focusState()->window();
 		if (!last_window) [[unlikely]]
 			return;
-		const char *app_id = app_id_pool.find(last_window->m_initialClass);
-		if (!app_id) [[unlikely]]
-			return;
+		auto [app_id, _, _] = resolve_app_id(last_window->m_initialClass);
 		window_switcher.activate(app_id, &app_id_to_stuff_map.find(app_id)->second.windows);
 	}
 	if (window_switcher.is_active()) [[likely]]

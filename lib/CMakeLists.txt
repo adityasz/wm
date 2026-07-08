@@ -1,3 +1,4 @@
+add_subdirectory(AppInfoLoader)
 add_subdirectory(AppSwitcher)
 add_subdirectory(Support)
 add_subdirectory(WindowManager)

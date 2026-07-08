@@ -86,7 +86,7 @@ wm_add_library(Hyprutils
 find_package(LLVM REQUIRED CONFIG)
 llvm_map_components_to_libnames(llvm_libs support)
 
-set(llvm_headers ADT/SmallVector.h ADT/STLExtras.h)
+set(llvm_headers ADT/SmallVector.h ADT/StringRef.h ADT/SmallString.h ADT/Twine.h ADT/STLExtras.h Support/Allocator.h Support/FileSystem.h Support/Path.h Support/StringSaver.h)
 list(TRANSFORM llvm_headers PREPEND "${LLVM_INCLUDE_DIRS}/llvm/")
 cxxmgen("llvm.Support"
     OUTPUT "${GENERATED_MODULES_DIR}/llvm/Support.ixx"
@@ -99,15 +99,19 @@ cxxmgen("llvm.Support"
 wm_add_library(llvm_modules
     MODULES_DIR "${GENERATED_MODULES_DIR}/llvm"
     MODULES Support.ixx
-    LINK_LIBS PUBLIC $<IF:$<CONFIG:Debug>,LLVM,${llvm_libs}>
+    LINK_LIBS PUBLIC $<IF:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,LLVM,${llvm_libs}>
 )
 
-pkg_check_modules(absl REQUIRED IMPORTED_TARGET absl_flat_hash_map absl_flat_hash_set absl_hash)
-pkg_get_variable(absl_INCLUDEDIR absl_flat_hash_map includedir)
+set(ABSL_PROPAGATE_CXX_STD ON)
+set(ABSL_ENABLE_INSTALL OFF)
+set(ABSL_BUILD_TESTING OFF)
+add_subdirectory("${CMAKE_SOURCE_DIR}/external/abseil-cpp")
 
+set(absl_INCLUDEDIR "${CMAKE_SOURCE_DIR}/external/abseil-cpp")
 set(absl_headers
     container/flat_hash_map.h
     container/flat_hash_set.h
+    container/internal/hashtable_debug_hooks.h
     hash/hash.h
 )
 list(TRANSFORM absl_headers PREPEND "${absl_INCLUDEDIR}/absl/")
@@ -122,5 +126,5 @@ cxxmgen("absl"
 wm_add_library(absl_modules
     MODULES_DIR "${GENERATED_MODULES_DIR}/absl"
     MODULES absl.ixx
-    LINK_LIBS PUBLIC PkgConfig::absl
+    LINK_LIBS PUBLIC absl::flat_hash_map absl::flat_hash_set absl::hash
 )

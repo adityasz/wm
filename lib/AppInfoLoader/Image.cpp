@@ -4,7 +4,7 @@ module;
 #include <spng.h>
 #include <turbojpeg.h>
 
-module wm.AppSwitcher.Image;
+module wm.AppInfoLoader.Image;
 
 import std;
 
@@ -70,7 +70,6 @@ static Image load_png(std::span<uint8_t> data)
 	};
 }
 
-// TODO: untested LLM written code
 static Image load_jpg(std::span<uint8_t> data)
 {
 	if (data.empty())
@@ -161,14 +160,15 @@ static Image load_svg(const char *path, int target_size)
 }
 
 namespace wm {
-Image read_image(const std::string &path, int size)
+Image read_image(const char *path, int size)
 {
-	if (path.ends_with(".svg"))
-		return load_svg(path.c_str(), size);
-	auto data = read_file(path);
-	if (path.ends_with(".png"))
+	auto p = std::string_view{path};
+	if (p.ends_with(".svg"))
+		return load_svg(path, size);
+	auto data = read_file(p);
+	if (p.ends_with(".png"))
 		return load_png(data);
-	if (path.ends_with(".jpg") || path.ends_with(".jpeg"))
+	if (p.ends_with(".jpg") || p.ends_with(".jpeg"))
 		return load_jpg(data);
 	return {};
 }

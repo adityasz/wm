@@ -4,7 +4,7 @@ import hyprland.config;
 import hyprland.plugins;
 import hyprland.render;
 
-import wm.Support;
+import wm.Support.Utils;
 import wm.WindowManager;
 
 import dispatchers;
@@ -39,11 +39,7 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 	if (Config::mgr()->type() != Config::CONFIG_LUA) [[unlikely]]
 		abort_init<"legacy config is not supported">(handle);
 
-	// TODO: fix the AppInfoLoader and get rid of this mess
-	auto icon_size_config =
-	    add_config<Config::Values::CFloatValue, "app_switcher:icons:size">(handle, 120);
-	WindowManagerConfig config(handle, icon_size_config);
-
+	WindowManagerConfig config(handle);
 	HyprlandAPI::reloadConfig();
 
 	window_manager.emplace(config);

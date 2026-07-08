@@ -7,25 +7,29 @@ export namespace wm {
 
 using std::size_t;
 
-using StringPoolEntry = std::pair<std::unique_ptr<char[]>, size_t>;
+class OwnedString : public std::string_view {
+	std::unique_ptr<char[]> data_;
 
-struct [[gnu::visibility("hidden")]] StringPoolHash {
+public:
+	OwnedString(std::unique_ptr<char[]> data, size_t len);
+
+	static OwnedString from(std::string_view sv);
+};
+
+struct [[gnu::visibility("hidden")]] OwnedStringHash {
 	using is_transparent = void;
 
-	size_t operator()(const StringPoolEntry &t) const;
 	size_t operator()(std::string_view sv) const;
 };
 
-struct [[gnu::visibility("hidden")]] StringPoolEq {
+struct [[gnu::visibility("hidden")]] OwnedStringEq {
 	using is_transparent = void;
 
-	bool operator()(const StringPoolEntry &lhs, const StringPoolEntry &rhs) const;
-	bool operator()(const StringPoolEntry &lhs, std::string_view rhs) const;
-	bool operator()(std::string_view lhs, const StringPoolEntry &rhs) const;
+	bool operator()(std::string_view lhs, std::string_view rhs) const;
 };
 
-class [[gnu::visibility("hidden")]] StringPool {
-	absl::flat_hash_set<StringPoolEntry, StringPoolHash, StringPoolEq> pool;
+class [[gnu::visibility("hidden")]] OwnedStringPool {
+	absl::flat_hash_set<OwnedString, OwnedStringHash, OwnedStringEq> pool;
 
 public:
 	std::pair<const char *, bool> get(std::string_view sv);
