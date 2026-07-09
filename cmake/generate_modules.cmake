@@ -102,9 +102,6 @@ wm_add_library(llvm_modules
     LINK_LIBS PUBLIC $<IF:$<OR:$<CONFIG:Debug>,$<CONFIG:RelWithDebInfo>>,LLVM,${llvm_libs}>
 )
 
-set(ABSL_PROPAGATE_CXX_STD ON)
-set(ABSL_ENABLE_INSTALL OFF)
-set(ABSL_BUILD_TESTING OFF)
 add_subdirectory("${CMAKE_SOURCE_DIR}/external/abseil-cpp")
 
 set(absl_INCLUDEDIR "${CMAKE_SOURCE_DIR}/external/abseil-cpp")

@@ -19,5 +19,5 @@ struct Image {
 	ImageFormat                format;
 };
 
-[[gnu::visibility("hidden")]] Image read_image(const char *path, int size);
+Image read_image(const char *path, int size);
 } // namespace wm

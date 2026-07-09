@@ -15,15 +15,14 @@ using Hyprutils::Memory::makeShared;
 
 export namespace wm {
 
-[[gnu::visibility("hidden")]] void focus_and_raise_window(
+void focus_and_raise_window(
     const PHLWINDOW                          &window,
     const CSharedPointer<CWLSurfaceResource> &pSurface             = nullptr,
     bool                                      preserveFocusHistory = false
 );
 
 template <ComptimeString FmtStr, typename... Args>
-[[noreturn]] [[gnu::visibility("hidden")]]
-void abort_init(void *handle, Args &&...fmt_args)
+[[noreturn]] void abort_init(void *handle, Args &&...fmt_args)
 {
 	static constexpr auto fmt_str = ComptimeString{"[wm] Error: Initialization failed: "} + FmtStr;
 	auto                  err_msg = std::format(fmt_str.str, std::forward<Args>(fmt_args)...);
@@ -32,7 +31,6 @@ void abort_init(void *handle, Args &&...fmt_args)
 }
 
 template <typename T, ComptimeString Key, typename U>
-[[gnu::visibility("hidden")]]
 CSharedPointer<T> add_config(void *handle, const char *desc, U value)
 {
 	static constexpr auto name       = ComptimeString{"plugin:wm:"} + Key;
@@ -44,7 +42,6 @@ CSharedPointer<T> add_config(void *handle, const char *desc, U value)
 }
 
 template <typename T, ComptimeString Key, typename U>
-[[gnu::visibility("hidden")]]
 CSharedPointer<T> add_config(void *handle, U value)
 { return add_config<T, Key>(handle, "", value); }
 

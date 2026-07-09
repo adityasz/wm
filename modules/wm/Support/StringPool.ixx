@@ -16,19 +16,19 @@ public:
 	static OwnedString from(std::string_view sv);
 };
 
-struct [[gnu::visibility("hidden")]] OwnedStringHash {
+struct OwnedStringHash {
 	using is_transparent = void;
 
 	size_t operator()(std::string_view sv) const;
 };
 
-struct [[gnu::visibility("hidden")]] OwnedStringEq {
+struct OwnedStringEq {
 	using is_transparent = void;
 
 	bool operator()(std::string_view lhs, std::string_view rhs) const;
 };
 
-class [[gnu::visibility("hidden")]] OwnedStringPool {
+class OwnedStringPool {
 	absl::flat_hash_set<OwnedString, OwnedStringHash, OwnedStringEq> pool;
 
 public:

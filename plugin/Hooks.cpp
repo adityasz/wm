@@ -59,7 +59,7 @@ concept HookImpl = requires {
 };
 
 template <typename Self>
-struct [[gnu::visibility("hidden")]] Hook {
+struct Hook {
 	static inline CFunctionHook *hook = nullptr;
 
 	static bool install(void *handle)
@@ -84,8 +84,7 @@ struct [[gnu::visibility("hidden")]] Hook {
 
 namespace hooks {
 
-struct [[gnu::visibility("hidden")]] Config_Actions_closeWindow
-    : Hook<Config_Actions_closeWindow> {
+struct Config_Actions_closeWindow : Hook<Config_Actions_closeWindow> {
 	static constexpr auto name = "closeWindow";
 
 	static ActionResult fn(std::optional<PHLWINDOW> w)
@@ -137,8 +136,7 @@ static bool shud_i_render_tha_windo(
 	return true;
 }
 
-struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindows
-    : Hook<IHyprRenderer_renderWorkspaceWindows> {
+struct IHyprRenderer_renderWorkspaceWindows : Hook<IHyprRenderer_renderWorkspaceWindows> {
 	static constexpr auto name = "renderWorkspaceWindows";
 
 	static void
@@ -167,7 +165,7 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindows
 	}
 };
 
-struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscreen
+struct IHyprRenderer_renderWorkspaceWindowsFullscreen
     : Hook<IHyprRenderer_renderWorkspaceWindowsFullscreen> {
 	static inline auto name = "renderWorkspaceWindowsFullscreen";
 
@@ -245,8 +243,7 @@ struct [[gnu::visibility("hidden")]] IHyprRenderer_renderWorkspaceWindowsFullscr
 
 using namespace Hyprutils::Math;
 
-struct [[gnu::visibility("hidden")]] CCompositor_vectorToWindowUnified
-    : Hook<CCompositor_vectorToWindowUnified> {
+struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnified> {
 	static constexpr auto name = "vectorToWindowUnified";
 
 	static PHLWINDOW
@@ -414,8 +411,7 @@ struct [[gnu::visibility("hidden")]] CCompositor_vectorToWindowUnified
 #endif
 
 #ifdef BETTER_DRAG_BEHAVIOR
-struct [[gnu::visibility("hidden")]] CKeybindManager_changeMouseBindMode
-    : Hook<CKeybindManager_changeMouseBindMode> {
+struct CKeybindManager_changeMouseBindMode : Hook<CKeybindManager_changeMouseBindMode> {
 	static constexpr auto name = "changeMouseBindMode";
 
 	static SDispatchResult fn(eMouseBindMode MODE)

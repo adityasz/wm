@@ -36,7 +36,7 @@ struct AppStuff {
 	std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>> icon_texture;
 };
 
-struct [[gnu::visibility("hidden")]] AppSwitcherConfig {
+struct AppSwitcherConfig {
 	CSharedPointer<CColorValue>  container_background_color;
 	CSharedPointer<CColorValue>  container_border_color;
 	CSharedPointer<CFloatValue>  container_border_width;
@@ -56,7 +56,7 @@ struct [[gnu::visibility("hidden")]] AppSwitcherConfig {
 	AppSwitcherConfig(void *handle);
 };
 
-class [[gnu::visibility("hidden")]] AppSwitcher {
+class AppSwitcher {
 public: // TODO: clean (zero-overhead) abstractions without duplicating methods
 	AppInfoLoader app_info_loader;
 
@@ -126,7 +126,7 @@ private:
 };
 
 // Credit: https://github.com/yz778/hyprview
-class [[gnu::visibility("hidden")]] AppSwitcherPassElement final : public IPassElement {
+class AppSwitcherPassElement final : public IPassElement {
 public:
 	explicit AppSwitcherPassElement(AppSwitcher *instance);
 	~AppSwitcherPassElement() override = default;

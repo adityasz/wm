@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#pragma GCC visibility push(default)
 #include <hyprland/src/render/OpenGL.hpp>
 
 #define private   public
@@ -16,3 +17,4 @@
 #include <hyprland/src/render/Renderer.hpp>
 #undef protected
 #undef private
+#pragma GCC visibility pop

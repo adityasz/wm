@@ -9,6 +9,7 @@
 #include <variant>
 #include <vector>
 
+#pragma GCC visibility push(default)
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
 #include <hyprland/src/config/shared/actions/ConfigActions.hpp>
@@ -17,3 +18,4 @@
 #include <hyprland/src/config/values/types/FloatValue.hpp>
 #include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/config/values/types/StringValue.hpp>
+#pragma GCC visibility pop

@@ -24,7 +24,7 @@ using Hyprutils::Memory::CSharedPointer;
 
 export namespace wm {
 
-struct [[gnu::visibility("hidden")]] WindowManagerConfig {
+struct WindowManagerConfig {
 	AppSwitcherConfig app_switcher;
 
 	WindowManagerConfig(void *handle);
@@ -41,7 +41,7 @@ using AppEntryResult = std::pair<absl::flat_hash_map<const char *, AppStuff>::it
 
 enum class DesktopFileStatus { Scanning, NoDesktopFile, HasDesktopFile };
 
-class [[gnu::visibility("hidden")]] WindowManager {
+class WindowManager {
 	std::vector<const char *>                   app_id_focus_history;
 	absl::flat_hash_map<const char *, AppStuff> app_id_to_stuff_map;
 	/// If the desktop file for an app ID is not found, app ID is stored here.

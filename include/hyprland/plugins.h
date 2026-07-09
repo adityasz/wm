@@ -9,4 +9,6 @@
 #include <variant>
 #include <vector>
 
+#pragma GCC visibility push(default)
 #include <hyprland/src/plugins/PluginAPI.hpp>
+#pragma GCC visibility pop

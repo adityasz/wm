@@ -38,7 +38,7 @@ struct AppInfo {
 };
 
 // TODO: watch app_dirs.
-class [[gnu::visibility("hidden")]] AppInfoLoader {
+class AppInfoLoader {
 	llvm::BumpPtrAllocator                         string_alloc;
 	llvm::StringSaver                              string_saver;
 	absl::flat_hash_map<std::string_view, XdgInfo> app_id_to_info_map;
