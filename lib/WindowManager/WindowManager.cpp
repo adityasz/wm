@@ -345,8 +345,9 @@ void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &i
 		}
 		info.cancelled = false;
 		break;
-	case KEY_LEFTSHIFT: [[fallthrough]];
-	case KEY_RIGHTSHIFT:
+	[[unlikely]] case KEY_LEFTSHIFT:
+		[[fallthrough]];
+	[[unlikely]] case KEY_RIGHTSHIFT:
 		shift_held     = state;
 		info.cancelled = false;
 		break;
@@ -368,7 +369,8 @@ void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &i
 		}
 		info.cancelled = false;
 		break;
-	default: info.cancelled = false;
+	[[likely]] default:
+		info.cancelled = false;
 	}
 }
 
@@ -399,7 +401,7 @@ void WindowManager::handle_window_switching(bool backwards)
 
 void WindowManager::render_app_switcher(eRenderStage stage)
 {
-	if (app_switcher.is_active() && stage == RENDER_POST_WINDOWS)
+	if (app_switcher.is_active() && stage == RENDER_LAST_MOMENT)
 		g_pHyprRenderer->m_renderPass.add(makeUnique<AppSwitcherPassElement>(&app_switcher));
 }
 

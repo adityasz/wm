@@ -4,15 +4,32 @@ A Hyprland plugin that improves window management.
 
 ## Installation
 
+> [!WARNING]
+> Do not use CMake 4.4.0: it invokes clang
+> [incorrectly](https://gitlab.kitware.com/cmake/cmake/-/work_items/27930),
+> causing clang 22.1.8 to
+> [crash](https://github.com/llvm/llvm-project/issues/208856).
+> CMake 4.3.3 works fine.
+
+> [!WARNING]
+> See [GCC bug 99931](https://gcc.gnu.org/bugzilla/show_bug.cgi?id=99931) and
+> [CWG2973](https://www.open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#2973).
+>
+> TL;DR: A Hyprland header unit
+> [contains](https://github.com/hyprwm/Hyprland/blob/5ba33f846129f3e6c0505b19f94634b24505e828/src/plugins/PluginAPI.hpp#L36)
+> `using identifier = struct<unnamed>;` in the global namespace. From
+> [`dcl.typedef#2`](https://eel.is/c++draft/dcl.typedef#2) and
+> [`basic.link#4.11`](https://eel.is/c++draft/basic.link#4.11), my understanding
+> is that `identifier` has external linkage, and hence cxxmgen emits a
+> `using ::identifier;` in the export block of the generated module. Clang and
+> other compilers assign the same linkage, but gcc says that `identifier` has no
+> linkage. The proposed change to the draft explicitly specifies the linkage.
+> gcc 16.1.1 is affected; I have not checked others.
+
 The `master` branch is compatible with Hyprland v0.55.4.
 
-- Install [cxxmgen](https://github.com/adityasz/cxxmgen). Note that gcc does
-  not like an export statement in a wrapper module because some Hyprland header
-  does a `using identifier = (anonymous struct)` (instead of the usual `struct
-  identifier {}` for some reason). Until I read the C++ standard again to figure
-  out which compiler is following the standard correctly (and maybe patch
-  cxxmgen if needed), use clang to build this project. (Modules speed up compile
-  times a lot, and hence there is no reason to not use them[^1].)
+- Install [cxxmgen](https://github.com/adityasz/cxxmgen). (Modules speed up
+  compile times a lot[^1].)
 - Generate the build system:
   ```console
   $ cmake --preset release-build   \
@@ -49,8 +66,8 @@ The following options can be set when generating the build system:
   [<kbd>shift</kbd>]<kbd>\`</kbd> for switching between windows of an app. These
   are hardcoded in
   [`lib/WindowManager/WindowManager.cpp`](lib/WindowManager/WindowManager.cpp)`:WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)`.
-  It is essential to keep these values compile-time constants since this
-  function is run on each keypress and release.
+  It makes sense to keep these values compile-time constants since this function
+  is run on each keypress and release.
 
 - `-DHASH_CHECK=<ON|OFF>`: Enable/disable hash check (useful when you apply non-ABI
   breaking patches to Hyprland and don't want to install headers again).
@@ -66,8 +83,8 @@ hl.config({
         wm = {
             app_switcher = {
                 container = {
-                    background_color = "#ffffff11",
-                    border_color = "#80808011",
+                    background_color = "#ffffff77",
+                    border_color = "#00000011",
                     padding = 20,
                     radius = 50,
                     border_width = 1,
@@ -76,12 +93,6 @@ hl.config({
                     background_color = "#00000011",
                     padding = 10,
                     radius = 40,
-                },
-                label = {
-                    font_family = "Inter",
-                    font_color = "#ffffff",
-                    font_size = 0,
-                    separation = 0,
                 },
                 icons = {
                     size = 120,
@@ -142,16 +153,13 @@ hl.config({
 [Example binds](https://github.com/adityasz/dotfiles/blob/master/.config/hypr/keymap.lua).
 
 [^1]: Incremental builds (modifying just a few `.cpp` files) can be several
-times faster. Clean builds are also significantly sped up (even including the
+times faster. Clean builds are also significantly faster (even including the
 time it takes to generate and build wrapper modules).
 
 [^2]: When a window is untiled and tiled, due to a limitation in Hyprland's
 built-in layouts, it may not go back to its previous spot. Also, Hyprland's
-built-in layouts are rudimentary (a binary tree is the wrong design). There is
-no way to tile a window in a certain direction, which is what is needed most of
-the time. Usually, one spends enough time on a fullscreen window to not care
-about where it was tiled before it was fullscreened. Instead, one wants it to
-appear next to a certain other window. I will write a tree at some point in the
-future that fixes all of these issues (which only cost me one extra keypress a
-few times a day, but the frustration is enough that the tree in my head will
-exist in code at some point).
+built-in layouts are rudimentary: There is no way to tile a window in a certain
+direction, which is what is needed most of the time. Usually, one spends enough
+time on a fullscreen window to not care about where it was tiled before it was
+fullscreened. Instead, one wants it to appear next to a certain other window. I
+will add a layout to this plugin with a better tree at some point in the future.

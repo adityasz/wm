@@ -22,12 +22,27 @@ using Config::Values::CIntValue;
 using Config::Values::CFloatValue;
 using Hyprutils::Math::CBox;
 using Hyprutils::Math::CRegion;
+using Hyprutils::Math::Vector2D;
 using Hyprutils::Memory::CSharedPointer;
 using Hyprutils::Memory::CUniquePointer;
 
 export namespace wm {
 
 struct IconPending {};
+
+struct ShadowConfig {
+	bool       enabled;
+	bool       sharp;
+	int        range;
+	float      scale;
+	Vector2D   offset;
+	CHyprColor color;
+};
+
+struct SolidSurface {
+	CSharedPointer<Render::ITexture> texture;
+	float                            opacity;
+};
 
 struct AppStuff {
 	llvm::SmallVector<PHLWINDOWREF>                                             windows;
@@ -45,10 +60,6 @@ struct AppSwitcherConfig {
 	CSharedPointer<CColorValue>  selection_background_color;
 	CSharedPointer<CFloatValue>  selection_padding;
 	CSharedPointer<CIntValue>    selection_radius;
-	CSharedPointer<CStringValue> font_family;
-	CSharedPointer<CColorValue>  font_color;
-	CSharedPointer<CIntValue>    font_size;
-	CSharedPointer<CFloatValue>  label_sep;
 	CSharedPointer<CFloatValue>  icon_size;
 	CSharedPointer<CFloatValue>  icon_sep;
 	CSharedPointer<CStringValue> icon_theme;
@@ -80,21 +91,17 @@ private:
 	int      idx;
 	uint32_t max_entries;
 
-	int         container_radius;
-	int         selection_radius;
-	CHyprColor  container_background_color;
-	CHyprColor  selection_background_color;
-	CHyprColor  container_border_color;
-	double      container_border_width;
-	double      container_padding;
-	double      selection_padding;
-	double      icon_size;
-	double      icon_sep;
-	double      label_sep;
-	std::string font_family;
-	CHyprColor  font_color;
-	double      font_height;
-	int         font_size;
+	int                        container_radius;
+	int                        selection_radius;
+	SolidSurface               container_surface;
+	SolidSurface               selection_surface;
+	double                     container_border_width;
+	double                     container_padding;
+	double                     selection_padding;
+	double                     icon_size;
+	double                     icon_sep;
+	ShadowConfig               shadow;
+	Config::CGradientValueData container_border_gradient;
 
 	AppSwitcherConfig config;
 
@@ -117,15 +124,16 @@ public:
 	void prune_cache(std::span<const char *> app_ids_to_keep);
 
 private:
-	void                                              load_config();
-	void                                              load_icon_textures();
-	[[nodiscard]] std::expected<CBox, std::monostate> get_container_box() const;
-	[[gnu::hot]] void                                 render();
+	void load_config();
+	void load_icon_textures();
+	[[nodiscard]] CBox
+	get_shadow_box(const CBox &, const ShadowConfig &, double monitor_scale) const;
+	[[nodiscard]] std::expected<CBox, std::monostate>      get_container_box() const;
+	[[gnu::hot]] std::vector<CUniquePointer<IPassElement>> render();
 
 	friend class AppSwitcherPassElement;
 };
 
-// Credit: https://github.com/yz778/hyprview
 class AppSwitcherPassElement final : public IPassElement {
 public:
 	explicit AppSwitcherPassElement(AppSwitcher *instance);
