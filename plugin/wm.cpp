@@ -30,7 +30,7 @@ std::tuple<std::string, std::string, std::string, std::string> pluginInit(void *
 	auto compositor_hash = __hyprland_api_get_hash();
 	auto client_hash     = __hyprland_api_get_client_hash();
 	if (std::strcmp(compositor_hash, client_hash)) [[unlikely]] {
-		init_die<"Version mismatch (headers ver = {} != {} = running ver)">(
+		abort_init<"Version mismatch (headers ver = {} != {} = running ver)">(
 		    handle, compositor_hash, client_hash
 		);
 	}
