@@ -3,7 +3,7 @@ export module wm.Support.Utils;
 import std;
 import hyprland.desktop;
 import hyprland.globals;
-import hyprland.helpers;
+import hyprland.output;
 import hyprland.plugins;
 import hyprland.protocols;
 import hyprutils.memory;

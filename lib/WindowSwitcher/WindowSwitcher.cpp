@@ -62,7 +62,7 @@ const char *WindowSwitcher::current_app_id() const { return app_id; }
 void WindowSwitcher::update_app_windows(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows)
 { this->app_windows = app_windows; }
 
-void WindowSwitcher::on_close_window(const PHLWINDOW &closing_window)
+void WindowSwitcher::on_close_window(const PHLWINDOWREF &closing_window)
 {
 	for (const auto &[i, window] : *app_windows | std::views::enumerate) {
 		if (window == closing_window) {

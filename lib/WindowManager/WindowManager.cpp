@@ -1,7 +1,9 @@
 module;
 
 #include <cassert>
+#include <config/shared/actions/ConfigActions.hpp>
 #include <linux/input-event-codes.h>
+#include <managers/fullscreen/FullscreenController.hpp>
 
 module wm.WindowManager;
 
@@ -11,6 +13,7 @@ import llvm.Support;
 import hyprland.config;
 import hyprland.globals;
 import hyprland.layout;
+import hyprland.managers;
 import hyprland.render;
 import hyprutils.math;
 import hyprutils.memory;
@@ -23,6 +26,7 @@ using Config::Actions::actionError;
 using Config::Actions::eActionErrorCode;
 using Config::Actions::eActionErrorLevel;
 using Config::Actions::eTogglableAction;
+using Fullscreen::eFullscreenMode;
 using Hyprutils::Math::CBox;
 using Hyprutils::Memory::CSharedPointer, Hyprutils::Memory::makeUnique;
 
@@ -135,10 +139,11 @@ void WindowManager::maybe_restore_fullscreen(const PHLWINDOW &window) const
 {
 	if (auto it = window_info_map.find(window.get());
 	    it != window_info_map.end()
-	    && window->m_fullscreenState.internal == eFullscreenMode::FSMODE_NONE) {
+	    && Fullscreen::controller()->getFullscreenModes(window).internal
+	           == eFullscreenMode::FSMODE_NONE) {
 		// window was maximized/fullscreened before, but then some other window
 		// got maximized/fullscreened, and Hyprland restored this window.
-		auto _ = Config::Actions::fullscreenWindow(it->second.mode, window);
+		auto _ = Config::Actions::fullscreenWindow(it->second.mode, false, window);
 	}
 }
 
@@ -160,7 +165,7 @@ void WindowManager::on_touch_window(const PHLWINDOW &window, Desktop::eFocusReas
 	maybe_restore_fullscreen(window);
 }
 
-void WindowManager::on_close_window(const PHLWINDOW &window)
+void WindowManager::on_close_window(const PHLWINDOWREF &window)
 {
 	if (!window)
 		return;
@@ -238,9 +243,10 @@ ActionResult WindowManager::move_or_exec(const char *app_id, const char *command
 		log<LogLevel::TRACE, "moving window '{}' from workspace '{}' to the active workspace '{}'">(
 		    window.get(), window->m_workspace->m_name, active_workspace->m_name
 		);
-		g_pCompositor->moveWindowToWorkspaceSafe(window, active_workspace);
-	} else {
-		g_pCompositor->warpCursorTo(window->middle());
+		if (auto err = Config::Actions::moveToWorkspace(active_workspace, true, window); !err)
+		    [[unlikely]] {
+			return err;
+		}
 	}
 	log<LogLevel::TRACE, "focusing {}">(window.get());
 	focus_and_raise_window(window);
@@ -257,7 +263,7 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 		);
 	}
 
-	auto curr_mode = window->m_fullscreenState.internal;
+	auto curr_mode = Fullscreen::controller()->getFullscreenModes(window).internal;
 
 	eFullscreenMode desired_mode;
 	if (toggle && curr_mode == mode)
@@ -272,14 +278,15 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 		if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) {
 			it->second.mode = desired_mode;
 		} else {
-			auto size     = window->m_size;
-			auto floating = window->m_isFloating;
+			auto layoutBox = window->layoutBox();
+			auto size      = layoutBox.size();
+			auto floating  = window->m_isFloating;
 			if (auto target = window->layoutTarget(); !floating && target) [[likely]]
 				size = target->lastFloatingSize();
 			window_info_map.try_emplace(
 			    window.get(),
 			    WindowInfo{
-			        .position = window->m_position,
+			        .position = layoutBox.pos(),
 			        .size     = size,
 			        .floating = floating,
 			        .mode     = desired_mode,
@@ -301,11 +308,11 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 				}
 			}
 		}
-		return Config::Actions::fullscreenWindow(desired_mode, window);
+		return Config::Actions::fullscreenWindow(desired_mode, false, window);
 	}
 
 	if (auto it = window_info_map.find(window.get()); it != window_info_map.end()) [[likely]] {
-		auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, window);
+		auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, false, window);
 		if (it->second.floating) {
 			if (auto target = window->layoutTarget()) [[likely]]
 				g_layoutManager->setTargetGeom(CBox{it->second.position, it->second.size}, target);
@@ -319,7 +326,7 @@ WindowManager::fullscreen(eFullscreenMode mode, bool toggle, const std::optional
 		return {};
 	}
 
-	return Config::Actions::fullscreenWindow(desired_mode, window);
+	return Config::Actions::fullscreenWindow(desired_mode, false, window);
 }
 
 void WindowManager::on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info)

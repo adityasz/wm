@@ -26,7 +26,7 @@ public:
 	void deactivate();
 	/// Pointers to keys in absl::flat_hash_map are not stable, so this is needed.
 	void update_app_windows(llvm::SmallVectorImpl<PHLWINDOWREF> *app_windows);
-	void on_close_window(const PHLWINDOW &closing_window);
+	void on_close_window(const PHLWINDOWREF &closing_window);
 	[[nodiscard]] bool        is_active() const;
 	[[nodiscard]] const char *current_app_id() const;
 

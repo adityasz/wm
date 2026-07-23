@@ -1,32 +1,22 @@
 /**
- * `Actions::closeWindow` hook is supposed to close all windows of the app
- * highlighted in the app switcher. In a previous version of Hyprland, close
- * events were not emitted when I wrote code to close windows the way they are
- * supposed to be closed, and therefore I have no reason to do it until the
- * relevant parts in Hyprland codebase get cleaned up.
+ * Note: I will write a custom layout (where `CWindow::m_isFloating` is true for
+ * all windows) to replace these hooks.
  *
- * Hyprland lacks an always on top toggle (something like
- * `CWindow::m_alwaysOnTop`, which is different from `CWindow::m_pinned`).
- * Instead, it hardcodes floating windows to render on top of tiled windows,
- * which is strictly worse: (1) A setting like `general.floating_always_on_top =
- * true` can be used to set `CWindow::m_alwaysOnTop` to true for all floating
- * windows at launch to get the existing behavior, and (2) it is trivial to
- * find a use case where a floating window rendering behind a tiled window is
- * objectively the best solution. I don't see a reason to implement
- * `CWindow::m_alwaysOnTop` like functionality in this plugin since Hyprland
- * code is ugly and unstable, and I want as little maintenance as possible. So,
- * `CWindow::m_pinned` serves as a close enough (but semantically different)
- * workaround for when I want a window above all others.
+ * Hyprland keeps floating windows always on top. This is strictly worse than
+ * having something like `CWindow::m_alwaysOnTop`: (1) a setting like
+ * `general.floating_always_on_top = true` can be used to set
+ * `CWindow::m_alwaysOnTop` to true for all floating windows at launch to get
+ * the existing behavior, and (2) it is trivial to see that there exist use
+ * cases where a floating window should render behind a tiled window.
+ *
+ * I don't see a reason to implement `CWindow::m_alwaysOnTop`-like functionality
+ * in this plugin since Hyprland code is ugly and unstable, and I want as little
+ * maintenance as possible. So, `CWindow::m_pinned` serves as a close enough
+ * (but semantically different) workaround for when I want a window above all
+ * others.
  *
  * Functions that render windows and handle mouse input are hooked so that
- * windows render the way they are supposed to render. The hooks are untested
- * outside of my use cases (which include zero X11 windows among other quirks).
- *
- * Hyprland unfortunately requires too many overrides to get a usable baseline;
- * GNOME/KDE have working focus and window order, so I will only have to write a
- * tiling tree (which I will have to do in Hyprland as well), but both of them
- * are worse in other ways (bugs, high CPU usage (even Hyprland is very
- * inefficient), etc.). No good Wayland compositor :-(
+ * windows render the way they are supposed to render.
  */
 
 module hooks;
@@ -44,6 +34,7 @@ import hyprland.layout;
 import hyprland.plugins;
 import hyprland.protocols;
 import hyprland.render;
+import hyprland.state;
 import hyprland.xwayland;
 import hyprutils.math;
 
@@ -51,6 +42,7 @@ import globals;
 
 using std::uint16_t;
 using Config::Actions::ActionResult;
+using Fullscreen::eFullscreenMode;
 
 template <typename Self>
 concept HookImpl = requires {
@@ -89,16 +81,10 @@ struct Config_Actions_closeWindow : Hook<Config_Actions_closeWindow> {
 
 	static ActionResult fn(std::optional<PHLWINDOW> w)
 	{
-		// TODO: If I just close all windows of the currently highlighted app in the
-		// app switcher in a for loop, close events are not emitted.
 		if (window_manager->is_app_switcher_active()) {
-			return Config::Actions::actionError(
-			    "AppSwitcher active; ignoring closeWindow",
-			    Config::Actions::eActionErrorLevel::INFO,
-			    Config::Actions::eActionErrorCode::UNAVAILABLE
-			);
+			for (const auto &window : window_manager->app_switcher.selected_windows())
+				auto _ = Config::Actions::closeWindow(window.lock());
 		}
-
 		return original(w);
 	}
 };
@@ -111,7 +97,7 @@ static bool shud_i_render_tha_windo(
     const PHLMONITOR      &pMonitor
 )
 {
-	if (w->isHidden() || (!w->m_isMapped && !w->m_fadingOut))
+	if (w->isHidden() || !w->m_isMapped)
 		return false;
 
 	if (w->m_pinned)
@@ -147,21 +133,16 @@ struct IHyprRenderer_renderWorkspaceWindows : Hook<IHyprRenderer_renderWorkspace
 	{
 		Event::bus()->m_events.render.stage.emit(RENDER_PRE_WINDOWS);
 
-		llvm::SmallVector<PHLWINDOWREF, 64> fading_out;
-
-		for (const auto &w : g_pCompositor->m_windows) {
+		for (const auto &w : Desktop::windowState()->windows()) {
 			if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
 				continue;
-
-			if (w->m_fadingOut)
-				fading_out.emplace_back(w);
-			else
-				thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
+			thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
 		}
 
-		// render fading out windows above others
-		for (const auto &w : fading_out)
-			thisptr->renderWindow(w.lock(), pMonitor, time, true, Render::RENDER_PASS_MAIN);
+		// z-order is wrong, but there usually aren't enough fading out windows to notice this
+		// the alternative is to "fork" one more function, which is not worth it
+		thisptr->renderFadeouts(pMonitor, Desktop::FADEOUT_PLANE_WINDOW_TILED, pWorkspace);
+		thisptr->renderFadeouts(pMonitor, Desktop::FADEOUT_PLANE_WINDOW_FLOATING, pWorkspace);
 	}
 };
 
@@ -181,43 +162,42 @@ struct IHyprRenderer_renderWorkspaceWindowsFullscreen
 	   PHLWORKSPACE           pWorkspace,
 	   const Time::steady_tp &time)
 	{
-		auto it = std::ranges::find_if(g_pCompositor->m_windows, [&](const auto &w) {
+		auto it = std::ranges::find_if(Desktop::windowState()->windows(), [&](const auto &w) {
 			return w->m_workspace == pWorkspace
-			       && w->isFullscreen()
+			       && Fullscreen::controller()->isFullscreen(w)
 			       && shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor);
 		});
 
-		if (it == g_pCompositor->m_windows.end()) [[unlikely]] {
+		if (it == Desktop::windowState()->windows().end()) [[unlikely]] {
 			// does happen in the original (upstream) code
 			return thisptr->renderWorkspaceWindows(pMonitor, pWorkspace, time);
 		}
 
-		llvm::SmallVector<PHLWINDOWREF, 64> fading_out;
-
-		auto fullscreen_idx = std::distance(g_pCompositor->m_windows.begin(), it);
+		auto fullscreen_idx = std::distance(Desktop::windowState()->windows().begin(), it);
 
 		if ((*it)->effectiveAlpha() < 1.0f
 		    || ((*it)->m_realSize && (*it)->m_realSize->isBeingAnimated())
 		    || ((*it)->m_realPosition && (*it)->m_realPosition->isBeingAnimated())) {
 			// windows below fullscreen window will be visible
-			for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
-				if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
-					continue;
-				if (w->m_fadingOut)
-					fading_out.emplace_back(w);
-				else
-					thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
+			for (const auto &w :
+			     Desktop::windowState()->windows()
+			         | std::views::take(fullscreen_idx)
+			         | std::views::filter([&](const auto &w) {
+				           return shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor);
+			           })) {
+				thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
 			}
 		} else {
-			for (const auto &w : g_pCompositor->m_windows | std::views::take(fullscreen_idx)) {
+			for (const auto &w :
+			     Desktop::windowState()->windows()
+			         | std::views::take(fullscreen_idx)
+			         | std::views::filter([&](const auto &w) {
+				           return shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor);
+			           })) {
 				// this also hides floating windows behind a maximized window that lie
 				// outside its bounds, e.g., a floating window covering some part of
 				// waybar: not an issue for me.
-				if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
-					continue;
-				if (w->m_fadingOut) {
-					fading_out.emplace_back(w);
-				} else if (w->m_workspace != pWorkspace) {
+				if (w->m_workspace != pWorkspace) {
 					// when switching from one workspace to another, windows on
 					// other workspaces still need to be rendered
 					thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
@@ -227,44 +207,50 @@ struct IHyprRenderer_renderWorkspaceWindowsFullscreen
 
 		thisptr->renderWindow(*it, pMonitor, time, true, Render::RENDER_PASS_ALL);
 
-		for (const auto &w : g_pCompositor->m_windows | std::views::drop(fullscreen_idx + 1)) {
-			if (!shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor))
-				continue;
-			if (w->m_fadingOut)
-				fading_out.emplace_back(w);
-			else
-				thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
+		for (const auto &w :
+		     Desktop::windowState()->windows()
+		         | std::views::drop(fullscreen_idx + 1)
+		         | std::views::filter([&](const auto &w) {
+			           return shud_i_render_tha_windo(thisptr, w, pWorkspace, pMonitor);
+		           })) {
+			thisptr->renderWindow(w, pMonitor, time, true, Render::RENDER_PASS_ALL);
 		}
 
-		for (const auto &w : fading_out)
-			thisptr->renderWindow(w.lock(), pMonitor, time, true, Render::RENDER_PASS_MAIN);
+		// z-order is wrong, but there usually aren't enough fading out windows to notice this
+		// the alternative is to "fork" one more function, which is not worth it
+		thisptr->renderFadeouts(pMonitor, Desktop::FADEOUT_PLANE_WINDOW_TILED, pWorkspace);
+		thisptr->renderFadeouts(pMonitor, Desktop::FADEOUT_PLANE_WINDOW_FLOATING, pWorkspace);
 	}
 };
 
 using namespace Hyprutils::Math;
 
-struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnified> {
-	static constexpr auto name = "vectorToWindowUnified";
+struct Desktop_CViewHitTester_windowAt : Hook<Desktop_CViewHitTester_windowAt> {
+	static constexpr auto name = "windowAt";
 
 	static PHLWINDOW
-	fn(CCompositor *thisptr, const Vector2D &pos, uint16_t properties, PHLWINDOW pIgnoreWindow)
+	fn(Desktop::CViewHitTester *thisptr,
+	   const Vector2D          &pos,
+	   uint16_t                 properties,
+	   PHLWINDOW                IgnoreWindow)
 	// clang-format off
 	{
-	    const auto PMONITOR = thisptr->getMonitorFromVector(pos);
+	    const auto PMONITOR = State::monitorState()->query().vec(pos).run();
 	    if (!PMONITOR)
 	        return nullptr;
 
-	    static auto PRESIZEONBORDER      = CConfigValue<Config::INTEGER>("general:resize_on_border");
-	    static auto PBORDERSIZE          = CConfigValue<Config::INTEGER>("general:border_size");
-	    static auto PBORDERGRABEXTEND    = CConfigValue<Config::INTEGER>("general:extend_border_grab_area");
-	    static auto PSPECIALFALLTHRU     = CConfigValue<Config::INTEGER>("input:special_fallthrough");
-	    static auto PMODALPARENTBLOCKING = CConfigValue<Config::INTEGER>("general:modal_parent_blocking");
-	    static auto PFOLLOWMOUSESHRINK   = CConfigValue<Config::INTEGER>("input:follow_mouse_shrink");
-	    const auto  BORDER_GRAB_AREA     = *PRESIZEONBORDER ? *PBORDERSIZE + *PBORDERGRABEXTEND : 0;
-	    const bool  ONLY_PRIORITY        = properties & Desktop::View::FOCUS_PRIORITY;
-	    const bool  FOLLOW_MOUSE_CHECK   = properties & Desktop::View::FOLLOW_MOUSE_CHECK;
-	    const auto  HITBOX_SHRINK        = FOLLOW_MOUSE_CHECK ? *PFOLLOWMOUSESHRINK : 0;
-	    const auto  LASTFOCUSED          = Desktop::focusState()->window();
+	    static auto PRESIZEONBORDER         = CConfigValue<Config::INTEGER>("general:resize_on_border");
+	    static auto PBORDERSIZE             = CConfigValue<Config::INTEGER>("general:border_size");
+	    static auto PBORDERGRABEXTEND       = CConfigValue<Config::INTEGER>("general:extend_border_grab_area");
+	    static auto PSPECIALFALLTHRU        = CConfigValue<Config::INTEGER>("input:special_fallthrough");
+	    static auto PMODALPARENTBLOCKING    = CConfigValue<Config::INTEGER>("general:modal_parent_blocking");
+	    static auto PFOLLOWMOUSESHRINK      = CConfigValue<Config::INTEGER>("input:follow_mouse_shrink");
+	    const auto  BORDER_GRAB_AREA        = *PRESIZEONBORDER ? *PBORDERSIZE + *PBORDERGRABEXTEND : 0;
+	    const bool  ONLY_PRIORITY           = properties & Desktop::View::FOCUS_PRIORITY;
+	    const bool  DO_FOLLOW_MOUSE_CHECK   = properties & Desktop::View::FOLLOW_MOUSE_CHECK;
+	    const auto  HITBOX_SHRINK           = DO_FOLLOW_MOUSE_CHECK ? *PFOLLOWMOUSESHRINK : 0;
+	    const auto  LASTFOCUSED             = Desktop::focusState()->window();
+	    const auto  WINDOWS                 = thisptr->m_tracker.windows();
 
 	    const auto  isShadowedByModal = [](PHLWINDOW w) -> bool {
 	        return *PMODALPARENTBLOCKING && w->m_xdgSurface && w->m_xdgSurface->m_toplevel && w->m_xdgSurface->m_toplevel->anyChildModal();
@@ -272,12 +258,12 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 
 	    // pinned windows on top of floating regardless
 	    if (properties & Desktop::View::ALLOW_FLOATING) {
-	        for (auto const& w : thisptr->m_windows | std::views::reverse) {
+	        for (auto const& w : WINDOWS | std::views::reverse) {
 	            if (ONLY_PRIORITY && !w->priorityFocus())
 	                continue;
 
 	            if (w->m_pinned && w->m_isMapped && w->acceptsInput() && !w->m_X11ShouldntFocus && !w->m_ruleApplicator->noFocus().valueOrDefault() &&
-	                w != pIgnoreWindow && !isShadowedByModal(w)) {
+	                w != IgnoreWindow && !isShadowedByModal(w)) {
 	                const auto BB  = w->getWindowBoxUnified(properties);
 	                CBox       box = BB.copy().expand(!w->isX11OverrideRedirect() ? BORDER_GRAB_AREA : 0);
 	                if (HITBOX_SHRINK > 0 && w != LASTFOCUSED)
@@ -295,10 +281,10 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 
 	    auto windowForWorkspace = [&](bool special) -> PHLWINDOW {
 	        const WORKSPACEID WSPID      = special ? PMONITOR->activeSpecialWorkspaceID() : PMONITOR->activeWorkspaceID();
-	        const auto        PWORKSPACE = thisptr->getWorkspaceByID(WSPID);
+	        const auto        PWORKSPACE = State::workspaceState()->query().id(WSPID).run();
 
 	        // for windows, we need to check their extensions too, first.
-	        for (auto const& w : thisptr->m_windows | std::views::reverse) {
+	        for (auto const& w : WINDOWS | std::views::reverse) {
 	            if (ONLY_PRIORITY && !w->priorityFocus())
 	                continue;
 
@@ -309,13 +295,13 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 	                continue;
 
 	            if (!w->m_isX11 && w->m_isMapped && w->workspaceID() == WSPID && w->acceptsInput() && !w->m_X11ShouldntFocus &&
-	                !w->m_ruleApplicator->noFocus().valueOrDefault() && w != pIgnoreWindow && !isShadowedByModal(w)) {
+	                !w->m_ruleApplicator->noFocus().valueOrDefault() && w != IgnoreWindow && !isShadowedByModal(w)) {
 	                if (w->hasPopupAt(pos))
 	                    return w;
 	            }
 	        }
 
-	        for (auto const& w : thisptr->m_windows | std::views::reverse) {
+	        for (auto const& w : WINDOWS | std::views::reverse) {
 	            if (ONLY_PRIORITY && !w->priorityFocus())
 	                continue;
 
@@ -326,15 +312,15 @@ struct CCompositor_vectorToWindowUnified : Hook<CCompositor_vectorToWindowUnifie
 	                continue;
 
 	            if (w->m_isMapped && w->workspaceID() == WSPID && w->acceptsInput() && !w->m_X11ShouldntFocus && !w->m_ruleApplicator->noFocus().valueOrDefault() &&
-	                w != pIgnoreWindow && !isShadowedByModal(w)) {
-	                const bool isFullscreen = PWORKSPACE->m_hasFullscreenWindow && PWORKSPACE->getFullscreenWindow() == w;
+	                w != IgnoreWindow && !isShadowedByModal(w)) {
+	                const bool isFullscreen = Fullscreen::controller()->hasFullscreen(PWORKSPACE) && Fullscreen::controller()->getFullscreenWindow(PWORKSPACE) == w;
 	                CBox box = (w->m_isFloating || isFullscreen || (properties & Desktop::View::USE_PROP_TILED))
 	                            ? w->getWindowBoxUnified(properties)
-	                            : CBox{w->m_position, w->m_size};
+	                            : w->layoutBox();
 	                if ((properties & Desktop::View::INPUT_EXTENTS) && BORDER_GRAB_AREA > 0 && !w->isX11OverrideRedirect()) {
 	                    const auto WORKAREA                    = PWORKSPACE->m_space->workArea();
 	                    auto       isWindowCloseToWorkAreaEdge = [&](const Math::eDirection dir) -> bool {
-	                        constexpr double STICK_THRESHOLD = 2.0; // This constant is taken from isAdjacent in CCompositor::getWindowInDirection
+	                        constexpr double STICK_THRESHOLD = 2.0; // This constant is taken from isAdjacent in CWindowQuery::inDirection
 	                        double           aEdge           = -1;
 	                        double           bEdge           = -1;
 
@@ -422,7 +408,9 @@ struct CKeybindManager_changeMouseBindMode : Hook<CKeybindManager_changeMouseBin
 	            return {};
 
 	        const auto      MOUSECOORDS = g_pInputManager->getMouseCoordsInternal();
-	        const PHLWINDOW PWINDOW = g_pCompositor->vectorToWindowUnified(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+	        const PHLWINDOW PWINDOW =
+                Desktop::viewState()->hitTest().windowAt(MOUSECOORDS, Desktop::View::RESERVED_EXTENTS | Desktop::View::INPUT_EXTENTS | Desktop::View::ALLOW_FLOATING);
+
 
 	        if (!PWINDOW)
 	            return SDispatchResult{.passEvent = true, .error = ""};
@@ -440,8 +428,8 @@ struct CKeybindManager_changeMouseBindMode : Hook<CKeybindManager_changeMouseBin
 						MOUSECOORDS.y - (static_cast<double>(MOUSECOORDS.y - oy) / fs_h) * final_size.y
 					};
 				}
-				if (PWINDOW->isFullscreen())
-					auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, PWINDOW);
+				if (Fullscreen::controller()->isFullscreen(PWINDOW))
+					auto _ = Config::Actions::fullscreenWindow(eFullscreenMode::FSMODE_NONE, false, PWINDOW);
 				if (!it->second.floating) {
 					auto _ =
 						Config::Actions::floatWindow(Config::Actions::TOGGLE_ACTION_ENABLE, PWINDOW);
@@ -480,7 +468,7 @@ bool register_hooks(void *handle)
 #ifdef BETTER_FLOATING_BEHAVIOR
 	success &= hooks::IHyprRenderer_renderWorkspaceWindows::install(handle);
 	success &= hooks::IHyprRenderer_renderWorkspaceWindowsFullscreen::install(handle);
-	success &= hooks::CCompositor_vectorToWindowUnified::install(handle);
+	success &= hooks::Desktop_CViewHitTester_windowAt::install(handle);
 #endif
 #ifdef BETTER_DRAG_BEHAVIOR
 	success &= hooks::CKeybindManager_changeMouseBindMode::install(handle);

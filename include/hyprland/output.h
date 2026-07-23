@@ -10,7 +10,5 @@
 #include <vector>
 
 #pragma GCC visibility push(default)
-
-#include <hyprland/src/helpers/Color.hpp>
-
+#include <hyprland/src/output/Monitor.hpp>
 #pragma GCC visibility pop

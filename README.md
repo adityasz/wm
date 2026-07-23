@@ -26,7 +26,7 @@ A Hyprland plugin that improves window management.
 > linkage. The proposed change to the draft explicitly specifies the linkage.
 > gcc 16.1.1 is affected; I have not checked others.
 
-The `master` branch is compatible with Hyprland v0.55.4.
+The `master` branch is compatible with Hyprland v0.56.0.
 
 - Install [cxxmgen](https://github.com/adityasz/cxxmgen). (Modules speed up
   compile times a lot[^1].)

@@ -8,6 +8,7 @@ import std;
 
 import hyprland.config;
 import hyprland.desktop;
+import hyprland.managers;
 import hyprland.plugins;
 
 import globals;
@@ -16,6 +17,7 @@ import wm.Support.ComptimeString;
 
 using namespace wm;
 
+using Fullscreen::eFullscreenMode;
 namespace Config::Lua {
 namespace Bindings {
 using namespace Internal;

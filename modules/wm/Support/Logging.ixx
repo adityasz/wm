@@ -4,7 +4,7 @@ import std;
 import hyprland.config;
 import hyprland.debug;
 import hyprland.desktop;
-import hyprland.helpers;
+import hyprland.output;
 import hyprutils.cli;
 
 import wm.Support.ComptimeString;
@@ -59,7 +59,7 @@ struct std::formatter<CWindow *> {
 };
 
 template <typename T>
-    requires IsOneOf<T, CWorkspace *, CMonitor *>
+    requires IsOneOf<T, CWorkspace *, Monitor::CMonitor *>
 struct std::formatter<T> {
 	constexpr auto parse(format_parse_context &ctx) { return ctx.begin(); }
 

@@ -20,7 +20,7 @@ void register_listeners()
 	    [](const PHLWINDOW &w, Desktop::eFocusReason r) { window_manager->on_touch_window(w, r); }
 	);
 	static auto destroy_window = Event::bus()->m_events.window.destroy.listen(
-	    [](const PHLWINDOW &w) { window_manager->on_close_window(w); }
+	    [](const PHLWINDOWREF &w) { window_manager->on_close_window(w); }
 	);
 	static auto key_press = Event::bus()->m_events.input.keyboard.key.listen(
 	    [](IKeyboard::SKeyEvent e, Event::SCallbackInfo &i) { window_manager->on_key_press(e, i); }

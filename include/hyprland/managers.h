@@ -11,5 +11,6 @@
 
 #pragma GCC visibility push(default)
 #include <hyprland/src/managers/KeybindManager.hpp>
+#include <hyprland/src/managers/fullscreen/FullscreenController.hpp>
 #include <hyprland/src/managers/input/InputManager.hpp>
 #pragma GCC visibility pop

@@ -6,10 +6,11 @@ export module wm.AppSwitcher;
 
 import std;
 import llvm.Support;
-import hyprland.desktop;
-import hyprland.render;
-import hyprland.helpers;
 import hyprland.config;
+import hyprland.desktop;
+import hyprland.helpers;
+import hyprland.output;
+import hyprland.render;
 import hyprutils.math;
 import hyprutils.memory;
 import absl;
@@ -120,8 +121,11 @@ public:
 	void               deactivate();
 	void               on_close_app(const char *closing_app_id);
 	std::variant<std::monostate, IconPending, CSharedPointer<Render::ITexture>>
-	     load_app_icon(const char *app_id);
-	void prune_cache(std::span<const char *> app_ids_to_keep);
+	                                   load_app_icon(const char *app_id);
+	void                               prune_cache(std::span<const char *> app_ids_to_keep);
+	// Need to return a copy since windows might get removed during iteration in
+	// the Actions::closeWindow hook
+	llvm::SmallVector<PHLWINDOWREF, 8> selected_windows() const;
 
 private:
 	void load_config();

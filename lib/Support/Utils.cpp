@@ -8,6 +8,7 @@ module wm.Support.Utils;
 import std;
 import hyprland.desktop;
 import hyprland.globals;
+import hyprland.helpers;
 import hyprland.managers;
 import hyprutils.memory;
 
@@ -30,7 +31,7 @@ void focus_and_raise_window(
 	);
 	if (window->m_group)
 		window->m_group->setCurrent(window);
-	g_pCompositor->changeWindowZOrder(window, true);
+	Desktop::windowState()->raise(window);
 	g_pInputManager->simulateMouseMovement();
 }
 

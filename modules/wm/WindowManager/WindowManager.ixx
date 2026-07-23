@@ -8,6 +8,7 @@ import hyprland.config;
 import hyprland.devices;
 import hyprland.desktop;
 import hyprland.event;
+import hyprland.managers;
 import hyprutils.math;
 import hyprutils.memory;
 
@@ -19,6 +20,7 @@ export import wm.WindowSwitcher;
 
 using Config::Actions::ActionResult;
 using Desktop::View::CWindow;
+using Fullscreen::eFullscreenMode;
 using Hyprutils::Math::Vector2D;
 using Hyprutils::Memory::CSharedPointer;
 
@@ -50,10 +52,8 @@ class WindowManager {
 
 public:
 	absl::flat_hash_map<CWindow *, WindowInfo> window_info_map;
-
-private:
-	WindowSwitcher window_switcher;
-	AppSwitcher    app_switcher;
+	WindowSwitcher                             window_switcher;
+	AppSwitcher                                app_switcher;
 
 public:
 	explicit WindowManager(const WindowManagerConfig &config);
@@ -62,7 +62,7 @@ public:
 
 	void on_open_window(const PHLWINDOW &window);
 	void on_touch_window(const PHLWINDOW &window, Desktop::eFocusReason);
-	void on_close_window(const PHLWINDOW &window);
+	void on_close_window(const PHLWINDOWREF &window);
 
 	void on_key_press(IKeyboard::SKeyEvent e, Event::SCallbackInfo &info);
 

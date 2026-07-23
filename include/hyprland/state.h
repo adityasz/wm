@@ -10,14 +10,14 @@
 #include <vector>
 
 #pragma GCC visibility push(default)
-#include <hyprland/src/render/OpenGL.hpp>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wkeyword-macro"
 
 #define protected public
 #define private   public
-#include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/state/MonitorState.hpp>
+#include <hyprland/src/state/WorkspaceState.hpp>
 #undef private
 #undef protected
 

@@ -10,6 +10,17 @@
 #include <vector>
 
 #pragma GCC visibility push(default)
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+
+#define protected public
+#define private   public
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/SharedDefs.hpp>
+#undef private
+#undef protected
+
+#pragma GCC diagnostic pop
+
 #pragma GCC visibility pop

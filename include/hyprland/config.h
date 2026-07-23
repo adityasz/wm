@@ -10,6 +10,12 @@
 #include <vector>
 
 #pragma GCC visibility push(default)
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wkeyword-macro"
+
+#define protected public
+#define private   public
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
 #include <hyprland/src/config/shared/actions/ConfigActions.hpp>
@@ -18,4 +24,9 @@
 #include <hyprland/src/config/values/types/FloatValue.hpp>
 #include <hyprland/src/config/values/types/IntValue.hpp>
 #include <hyprland/src/config/values/types/StringValue.hpp>
+#undef private
+#undef protected
+
+#pragma GCC diagnostic pop
+
 #pragma GCC visibility pop

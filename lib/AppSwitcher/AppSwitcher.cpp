@@ -76,15 +76,17 @@ void AppSwitcher::load_config()
 	static auto shadow_range   = CConfigValue<Config::INTEGER>("decoration:shadow:range");
 	static auto shadow_scale   = CConfigValue<Config::FLOAT>("decoration:shadow:scale");
 	static auto shadow_offset  = CConfigValue<Config::VEC2>("decoration:shadow:offset");
-	static auto shadow_color   = CConfigValue<Config::INTEGER>("decoration:shadow:color");
-	const auto  offset         = *shadow_offset;
-	shadow                     = {
+	static auto shadow_color =
+	    CConfigValue<Config::IComplexConfigValue>("decoration:shadow:color");
+	const auto  offset          = *shadow_offset;
+	const auto *shadow_gradient = static_cast<Config::CGradientValueData *>(shadow_color.ptr());
+	shadow                      = {
 	    .enabled = static_cast<bool>(*shadow_enabled),
 	    .sharp   = static_cast<bool>(*shadow_sharp),
 	    .range   = static_cast<int>(*shadow_range),
 	    .scale   = static_cast<float>(*shadow_scale),
 	    .offset  = {offset.x, offset.y},
-	    .color   = CHyprColor{static_cast<uint64_t>(*shadow_color)},
+	    .color   = shadow_gradient->m_colors.front(),
 	};
 
 	container_padding      = config.container_padding->value();
@@ -489,3 +491,6 @@ void AppSwitcher::prune_cache(std::span<const char *> app_ids_to_keep)
 		);
 	}
 }
+
+llvm::SmallVector<PHLWINDOWREF, 8> AppSwitcher::selected_windows() const
+{ return llvm::to_vector<8>(app_stuff_map->find((*app_id_focus_history)[idx])->second.windows); }
