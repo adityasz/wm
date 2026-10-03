@@ -2,8 +2,8 @@
 	"version": 10,
 	"cmakeMinimumRequired": {
 		"major": 4,
-		"minor": 3,
-		"patch": 2
+		"minor": 4,
+		"patch": 4
 	},
 	"configurePresets": [
 		{
@@ -11,7 +11,7 @@
 			"hidden": true,
 			"generator": "Ninja",
 			"cacheVariables": {
-				"CMAKE_LINKER_TYPE": "MOLD",
+				"CMAKE_LINKER_TYPE": "WILD",
 				"CMAKE_COLOR_DIAGNOSTICS": "ON"
 			}
 		},
